@@ -13,10 +13,7 @@ const CARS: CarOption[] = [
   { type: "green",  name: "GREEN SUPER",   tagline: "Aerodynamic specialist" },
 ];
 
-const SLOT_X = [160, 400, 640];
-const SLOT_Y = 285;
-const CARD_W = 210;
-const CARD_H = 130;
+// Slot geometry is computed in create() from actual canvas dimensions.
 
 export class CarSelectionScene extends Phaser.Scene {
   private selectedIndex = 0;
@@ -29,6 +26,19 @@ export class CarSelectionScene extends Phaser.Scene {
   create(): void {
     const { width: W, height: H } = this.scale;
     const cx = W / 2;
+
+    // Slot geometry scaled to current canvas dimensions
+    const slotY = Math.round(H * 0.38);
+    const cardW = Math.round(W * 0.265);
+    const cardH = Math.round(H * 0.185);
+    const slotX = [
+      Math.round(W * 0.2),
+      Math.round(W * 0.5),
+      Math.round(W * 0.8),
+    ];
+    const infoY    = Math.round(H * 0.60);
+    const raceY    = Math.round(H * 0.75);
+    const backY    = Math.round(H * 0.87);
 
     // ── Background ────────────────────────────────────────────────────────
     this.add.rectangle(0, 0, W, H, 0x0a0a0a).setOrigin(0, 0);
@@ -48,17 +58,17 @@ export class CarSelectionScene extends Phaser.Scene {
 
     // ── Car cards ─────────────────────────────────────────────────────────
     CARS.forEach((car, i) => {
-      const x = SLOT_X[i];
+      const x = slotX[i];
 
-      const card = this.add.rectangle(x, SLOT_Y, CARD_W, CARD_H, 0x111111)
+      const card = this.add.rectangle(x, slotY, cardW, cardH, 0x111111)
         .setStrokeStyle(2, 0x2a2a2a)
         .setInteractive({ useHandCursor: true });
       this.cards.push(card);
 
       const key = createCarTexture(this, car.type);
-      this.add.image(x, SLOT_Y - 12, key).setScale(1.1);
+      this.add.image(x, slotY - 12, key).setScale(1.1);
 
-      this.add.text(x, SLOT_Y + 50, `0${i + 1}`, {
+      this.add.text(x, slotY + Math.round(cardH * 0.38), `0${i + 1}`, {
         fontSize: "11px", fontFamily: "monospace", color: "#333333",
       }).setOrigin(0.5);
 
@@ -72,11 +82,11 @@ export class CarSelectionScene extends Phaser.Scene {
     });
 
     // ── Nav arrows ────────────────────────────────────────────────────────
-    const arrowLeft = this.add.text(SLOT_X[0] - 110, SLOT_Y, "◄", {
+    const arrowLeft = this.add.text(Math.round(W * 0.04), slotY, "◄", {
       fontSize: "28px", fontFamily: "monospace", color: "#ff4400",
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    const arrowRight = this.add.text(SLOT_X[2] + 110, SLOT_Y, "►", {
+    const arrowRight = this.add.text(Math.round(W * 0.96), slotY, "►", {
       fontSize: "28px", fontFamily: "monospace", color: "#ff4400",
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
@@ -86,18 +96,18 @@ export class CarSelectionScene extends Phaser.Scene {
       this.selectCar((this.selectedIndex + 1) % CARS.length));
 
     // ── Info panel ────────────────────────────────────────────────────────
-    this.add.rectangle(cx, 404, 500, 56, 0x111111).setStrokeStyle(1, 0x2a2a2a);
-    this.nameText = this.add.text(cx, 392, "", {
+    this.add.rectangle(cx, infoY, Math.round(W * 0.9), 56, 0x111111).setStrokeStyle(1, 0x2a2a2a);
+    this.nameText = this.add.text(cx, infoY - 12, "", {
       fontSize: "22px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
-    this.taglineText = this.add.text(cx, 418, "", {
+    this.taglineText = this.add.text(cx, infoY + 14, "", {
       fontSize: "14px", fontFamily: "monospace", color: "#777777",
     }).setOrigin(0.5);
 
     // ── Race button ───────────────────────────────────────────────────────
-    const btnBg = this.add.rectangle(cx, 500, 240, 54, 0xff4400)
+    const btnBg = this.add.rectangle(cx, raceY, 240, 54, 0xff4400)
       .setInteractive({ useHandCursor: true });
-    const btnText = this.add.text(cx, 500, "RACE!", {
+    const btnText = this.add.text(cx, raceY, "RACE!", {
       fontSize: "28px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
 
@@ -112,7 +122,7 @@ export class CarSelectionScene extends Phaser.Scene {
     });
 
     // ── Back link ─────────────────────────────────────────────────────────
-    const backText = this.add.text(cx, 558, "← BACK TO MENU", {
+    const backText = this.add.text(cx, backY, "← BACK TO MENU", {
       fontSize: "13px", fontFamily: "monospace", color: "#444444",
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     backText.on("pointerover", () => backText.setColor("#888888"));

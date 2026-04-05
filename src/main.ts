@@ -6,8 +6,8 @@ import { ResultsScene } from "./scenes/ResultsScene";
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: 800,
-  height: 600,
+  width: 390,
+  height: 844,
   backgroundColor: "#0a0a0a",
   scene: [MenuScene, CarSelectionScene, RaceScene, ResultsScene],
   parent: document.body,

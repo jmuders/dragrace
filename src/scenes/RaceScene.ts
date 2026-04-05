@@ -21,11 +21,8 @@ function gradeColour(grade: ShiftGrade | LaunchGrade): string {
   }
 }
 
-const TRACK_START_X = 60;
-const TRACK_END_X   = 740;
-const TRACK_WIDTH   = TRACK_END_X - TRACK_START_X;
-const PLAYER_LANE_Y = 210;
-const CPU_LANE_Y    = 380;
+// Track geometry is computed at runtime from screen dimensions (see create()).
+// Original ratios: startX=7.5%, endX=92.5%, playerLaneY=35%, cpuLaneY=63.3%
 
 export class RaceScene extends Phaser.Scene {
   private sim!: RaceSimulation;
@@ -68,6 +65,13 @@ export class RaceScene extends Phaser.Scene {
 
   private finishLineGfx!: Phaser.GameObjects.Graphics;
 
+  // Track geometry – set in create() from actual canvas dimensions
+  private trackStartX!: number;
+  private trackEndX!:   number;
+  private trackWidth!:  number;
+  private playerLaneY!: number;
+  private cpuLaneY!:    number;
+
   constructor() { super({ key: "RaceScene" }); }
 
   create(data?: { carType?: CarType }): void {
@@ -83,12 +87,19 @@ export class RaceScene extends Phaser.Scene {
     this.amberLights = [];
 
     const { width: W, height: H } = this.scale;
+
+    this.trackStartX = Math.round(W * 0.075);
+    this.trackEndX   = Math.round(W * 0.925);
+    this.trackWidth  = this.trackEndX - this.trackStartX;
+    this.playerLaneY = Math.round(H * 0.35);
+    this.cpuLaneY    = Math.round(H * 0.633);
+
     const playerKey = createCarTexture(this, this.carType);
     const cpuKey    = createCarTexture(this, "orange");
 
     this.buildBackground(W, H);
     this.buildTrack(W, H);
-    this.buildFinishLine(H);
+    this.buildFinishLine();
     this.buildCars(playerKey, cpuKey);
     this.buildSpeedLines();
     this.buildCountdownTree(W, H);
@@ -120,8 +131,8 @@ export class RaceScene extends Phaser.Scene {
     const p = state.player;
     const c = state.opponent;
 
-    this.playerSprite.x = TRACK_START_X + (p.distance / QUARTER_MILE_METERS) * TRACK_WIDTH;
-    this.cpuSprite.x    = TRACK_START_X + (c.distance / QUARTER_MILE_METERS) * TRACK_WIDTH;
+    this.playerSprite.x = this.trackStartX + (p.distance / QUARTER_MILE_METERS) * this.trackWidth;
+    this.cpuSprite.x    = this.trackStartX + (c.distance / QUARTER_MILE_METERS) * this.trackWidth;
 
     if (state.phase === RacePhase.Racing && throttle) {
       const scroll = p.speed * 40;
@@ -135,7 +146,7 @@ export class RaceScene extends Phaser.Scene {
       });
       this.laneOffset = (this.laneOffset + scroll * dt * 0.9) % 120;
       this.laneMarkings.forEach((r, i) => {
-        r.x = (i * 60 - this.laneOffset + 1200) % 1200 - 60 + TRACK_START_X;
+        r.x = (i * 60 - this.laneOffset + 1200) % 1200 - 60 + this.trackStartX;
       });
     }
 
@@ -154,7 +165,7 @@ export class RaceScene extends Phaser.Scene {
       this.playerSprite.x += (Math.random() - 0.5) * 2;
       this.playerSprite.y += (Math.random() - 0.5) * 1.5;
     } else {
-      this.playerSprite.y = PLAYER_LANE_Y;
+      this.playerSprite.y = this.playerLaneY;
     }
 
     this.updateTree(state.countdown.ambersLit, state.countdown.greenLit, state.phase);
@@ -196,46 +207,50 @@ export class RaceScene extends Phaser.Scene {
     this.add.rectangle(0, H * 0.52, W, H * 0.48, 0x111111).setOrigin(0, 0);
   }
 
-  private buildTrack(W: number, H: number): void {
-    const trackH = 280;
-    this.add.rectangle(W / 2, H * 0.52, W, trackH, 0x1e1e1e);
+  private buildTrack(W: number, _H: number): void {
+    const pY = this.playerLaneY;
+    const cY = this.cpuLaneY;
+    const trackH = (cY + 56) - (pY - 56);
+    const trackCenterY = (pY + cY) / 2;
 
-    this.add.rectangle(W / 2, PLAYER_LANE_Y, W, 90, 0x222222);
-    this.add.rectangle(W / 2, PLAYER_LANE_Y - 45, W, 3, 0x444444);
-    this.add.rectangle(W / 2, PLAYER_LANE_Y + 45, W, 3, 0x333333);
+    this.add.rectangle(W / 2, trackCenterY, W, trackH, 0x1e1e1e);
 
-    const medianY = (PLAYER_LANE_Y + CPU_LANE_Y) / 2;
+    this.add.rectangle(W / 2, pY, W, 90, 0x222222);
+    this.add.rectangle(W / 2, pY - 45, W, 3, 0x444444);
+    this.add.rectangle(W / 2, pY + 45, W, 3, 0x333333);
+
+    const medianY = (pY + cY) / 2;
     this.add.rectangle(W / 2, medianY, W, 12, 0x333333);
     this.add.rectangle(W / 2, medianY, W, 3, 0xaaaa00).setAlpha(0.7);
 
-    this.add.rectangle(W / 2, CPU_LANE_Y, W, 90, 0x1e1e1e);
-    this.add.rectangle(W / 2, CPU_LANE_Y - 45, W, 3, 0x333333);
-    this.add.rectangle(W / 2, CPU_LANE_Y + 45, W, 3, 0x444444);
+    this.add.rectangle(W / 2, cY, W, 90, 0x1e1e1e);
+    this.add.rectangle(W / 2, cY - 45, W, 3, 0x333333);
+    this.add.rectangle(W / 2, cY + 45, W, 3, 0x444444);
 
     for (let i = 0; i < 24; i++) {
-      const x = TRACK_START_X + i * 60;
+      const x = this.trackStartX + i * 60;
       this.laneMarkings.push(
-        this.add.rectangle(x, PLAYER_LANE_Y, 30, 3, 0x555555).setOrigin(0, 0.5),
-        this.add.rectangle(x, CPU_LANE_Y,    30, 3, 0x444444).setOrigin(0, 0.5),
+        this.add.rectangle(x, pY, 30, 3, 0x555555).setOrigin(0, 0.5),
+        this.add.rectangle(x, cY, 30, 3, 0x444444).setOrigin(0, 0.5),
       );
     }
 
-    this.add.rectangle(TRACK_START_X, H * 0.52, 4, trackH, 0xffffff).setAlpha(0.5);
-    this.add.text(TRACK_START_X + 8, PLAYER_LANE_Y - 52, "START", {
+    this.add.rectangle(this.trackStartX, trackCenterY, 4, trackH, 0xffffff).setAlpha(0.5);
+    this.add.text(this.trackStartX + 8, pY - 52, "START", {
       fontSize: "11px", fontFamily: "monospace", color: "#888888",
     });
-    this.add.text(12, PLAYER_LANE_Y - 10, "PLAYER", {
+    this.add.text(12, pY - 10, "PLAYER", {
       fontSize: "11px", fontFamily: "monospace", color: "#4488ff",
     }).setOrigin(0, 0.5);
-    this.add.text(12, CPU_LANE_Y - 10, "CPU", {
+    this.add.text(12, cY - 10, "CPU", {
       fontSize: "11px", fontFamily: "monospace", color: "#ff6622",
     }).setOrigin(0, 0.5);
 
-    this.buildBarrier(W, PLAYER_LANE_Y - 52, 0x888888);
-    this.buildBarrier(W, CPU_LANE_Y + 52,    0x777777);
+    this.buildBarrier(W, pY - 52, 0x888888);
+    this.buildBarrier(W, cY + 52, 0x777777);
 
-    this.add.rectangle(W * 0.5, PLAYER_LANE_Y - 70, 100, 22, 0x003366);
-    this.add.text(W * 0.5, PLAYER_LANE_Y - 70, "QUARTER MILE", {
+    this.add.rectangle(W * 0.5, pY - 70, 100, 22, 0x003366);
+    this.add.text(W * 0.5, pY - 70, "QUARTER MILE", {
       fontSize: "9px", fontFamily: "monospace", color: "#88aaff",
     }).setOrigin(0.5, 0.5);
   }
@@ -247,35 +262,39 @@ export class RaceScene extends Phaser.Scene {
     }
   }
 
-  private buildFinishLine(H: number): void {
+  private buildFinishLine(): void {
+    const pY = this.playerLaneY;
+    const cY = this.cpuLaneY;
+    const top   = pY - 56;
+    const trackH = (cY + 56) - top;
+    const endX  = this.trackEndX;
+
     this.finishLineGfx = this.add.graphics();
     const g = this.finishLineGfx;
-    const trackH = 280;
-    const top = H * 0.52 - trackH / 2;
     const tileH = 14, tileW = 8, cols = 2;
     const rows = Math.ceil(trackH / tileH);
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         g.fillStyle((r + c) % 2 === 0 ? 0xffffff : 0x000000, 1);
-        g.fillRect(TRACK_END_X + c * tileW, top + r * tileH, tileW, tileH);
+        g.fillRect(endX + c * tileW, top + r * tileH, tileW, tileH);
       }
     }
-    this.add.text(TRACK_END_X + 20, H * 0.52, "FINISH", {
+    this.add.text(endX + 20, (pY + cY) / 2, "FINISH", {
       fontSize: "11px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0, 0.5);
   }
 
   private buildCars(playerKey: string, cpuKey: string): void {
-    this.playerSprite = this.add.image(TRACK_START_X, PLAYER_LANE_Y, playerKey)
+    this.playerSprite = this.add.image(this.trackStartX, this.playerLaneY, playerKey)
       .setOrigin(0.5, 0.7).setScale(1.8);
-    this.cpuSprite = this.add.image(TRACK_START_X, CPU_LANE_Y, cpuKey)
+    this.cpuSprite = this.add.image(this.trackStartX, this.cpuLaneY, cpuKey)
       .setOrigin(0.5, 0.7).setScale(1.8);
   }
 
   private buildSpeedLines(): void {
     for (const dy of [-22, -10, 2, 14, -28, 20]) {
       this.speedLines.push(
-        this.add.rectangle(0, PLAYER_LANE_Y + dy, 60, 2, 0xffffff, 0.35)
+        this.add.rectangle(0, this.playerLaneY + dy, 60, 2, 0xffffff, 0.35)
           .setOrigin(1, 0.5).setVisible(false),
       );
     }
@@ -411,17 +430,17 @@ export class RaceScene extends Phaser.Scene {
       }
       return bg;
     };
-    const throttleBg = makeBtn(75, h * 0.82, 140, h * 0.28, 0x2255ff, "THROTTLE", "HOLD");
+    const throttleBg = makeBtn(75, h * 0.82, 140, h * 0.16, 0x2255ff, "THROTTLE", "HOLD");
     throttleBg.on("pointerdown", () => { this.touchThrottle = true;  throttleBg.setAlpha(0.4); });
     throttleBg.on("pointerup",   () => { this.touchThrottle = false; throttleBg.setAlpha(0.18); });
     throttleBg.on("pointerout",  () => { this.touchThrottle = false; throttleBg.setAlpha(0.18); });
-    const shiftBg = makeBtn(w - 75, h * 0.72, 140, h * 0.14, 0xffaa00, "SHIFT", "TAP");
+    const shiftBg = makeBtn(w - 75, h * 0.75, 140, h * 0.12, 0xffaa00, "SHIFT", "TAP");
     shiftBg.on("pointerdown", () => {
       this.touchShiftEdge = true;
       shiftBg.setAlpha(0.55);
       this.time.delayedCall(130, () => shiftBg.setAlpha(0.18));
     });
-    const nitroBg = makeBtn(w - 75, h * 0.88, 140, h * 0.14, 0x00ccff, "NITRO", "HOLD");
+    const nitroBg = makeBtn(w - 75, h * 0.88, 140, h * 0.12, 0x00ccff, "NITRO", "HOLD");
     nitroBg.on("pointerdown", () => { this.touchNitro = true;  nitroBg.setAlpha(0.4); });
     nitroBg.on("pointerup",   () => { this.touchNitro = false; nitroBg.setAlpha(0.18); });
     nitroBg.on("pointerout",  () => { this.touchNitro = false; nitroBg.setAlpha(0.18); });

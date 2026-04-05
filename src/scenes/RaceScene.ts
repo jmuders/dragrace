@@ -33,6 +33,11 @@ export class RaceScene extends Phaser.Scene {
   private keyThrottleAlt!: Phaser.Input.Keyboard.Key;
   private shiftEdge = false; // true only on the frame the key was freshly pressed
 
+  // touch controls
+  private touchThrottle = false;
+  private touchNitro = false;
+  private touchShiftEdge = false;
+
   // ── scene objects ─────────────────────────────────────────────────────────
 
   // Road
@@ -86,6 +91,7 @@ export class RaceScene extends Phaser.Scene {
     this.buildCountdownTree(width, height);
     this.buildHUD(width, height);
     this.buildStartButton(width, height);
+    this.buildTouchControls(width, height);
 
     // Keyboard
     const kbd = this.input.keyboard!;
@@ -102,19 +108,20 @@ export class RaceScene extends Phaser.Scene {
   update(_time: number, deltaMs: number): void {
     const dt = Math.min(deltaMs / 1000, 0.05); // cap at 50ms to prevent spiral
 
-    // Edge-detect the shift key
+    // Edge-detect the shift key (keyboard or touch)
     const shiftDown = Phaser.Input.Keyboard.JustDown(this.keyShift);
-    if (shiftDown) this.shiftEdge = true;
+    if (shiftDown || this.touchShiftEdge) this.shiftEdge = true;
+    this.touchShiftEdge = false;
 
-    const throttleHeld = this.keyThrottle.isDown || this.keyThrottleAlt.isDown;
-    const nitroHeld    = this.keyNitro.isDown;
+    const throttleHeld = this.keyThrottle.isDown || this.keyThrottleAlt.isDown || this.touchThrottle;
+    const nitroHeld    = this.keyNitro.isDown || this.touchNitro;
 
     const simShifted = this.sim.update(
       { throttle: throttleHeld, shift: this.shiftEdge, nitro: nitroHeld },
       dt,
     );
 
-    // Consume the edge flag
+    // Consume the shift edge flag
     this.shiftEdge = false;
 
     const state = this.sim.getState();
@@ -471,5 +478,55 @@ export class RaceScene extends Phaser.Scene {
       duration: 200,
       ease: "Back.easeOut",
     });
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Touch controls (only added on touch-capable devices)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  private buildTouchControls(w: number, h: number): void {
+    if (!this.sys.game.device.input.touch) return;
+
+    const depth = 20;
+
+    // Helper: create a labelled touch button
+    const makeBtn = (
+      x: number, y: number, bw: number, bh: number,
+      colour: number, label: string, sublabel: string,
+    ): Phaser.GameObjects.Rectangle => {
+      const bg = this.add.rectangle(x, y, bw, bh, colour)
+        .setAlpha(0.18)
+        .setInteractive()
+        .setDepth(depth);
+      this.add.text(x, sublabel ? y - 10 : y, label, {
+        fontSize: "15px", fontFamily: "monospace", color: "#ffffff",
+      }).setOrigin(0.5).setAlpha(0.9).setDepth(depth + 1);
+      if (sublabel) {
+        this.add.text(x, y + 14, sublabel, {
+          fontSize: "11px", fontFamily: "monospace", color: "#aaaaaa",
+        }).setOrigin(0.5).setAlpha(0.85).setDepth(depth + 1);
+      }
+      return bg;
+    };
+
+    // ── THROTTLE – left column ─────────────────────────────────────────────
+    const throttleBg = makeBtn(75, h * 0.82, 140, h * 0.28, 0x2255ff, "THROTTLE", "HOLD");
+    throttleBg.on("pointerdown", () => { this.touchThrottle = true;  throttleBg.setAlpha(0.4); });
+    throttleBg.on("pointerup",   () => { this.touchThrottle = false; throttleBg.setAlpha(0.18); });
+    throttleBg.on("pointerout",  () => { this.touchThrottle = false; throttleBg.setAlpha(0.18); });
+
+    // ── SHIFT – upper right ────────────────────────────────────────────────
+    const shiftBg = makeBtn(w - 75, h * 0.72, 140, h * 0.14, 0xffaa00, "SHIFT", "TAP");
+    shiftBg.on("pointerdown", () => {
+      this.touchShiftEdge = true;
+      shiftBg.setAlpha(0.55);
+      this.time.delayedCall(130, () => shiftBg.setAlpha(0.18));
+    });
+
+    // ── NITRO – lower right ────────────────────────────────────────────────
+    const nitroBg = makeBtn(w - 75, h * 0.88, 140, h * 0.14, 0x00ccff, "NITRO", "HOLD");
+    nitroBg.on("pointerdown", () => { this.touchNitro = true;  nitroBg.setAlpha(0.4); });
+    nitroBg.on("pointerup",   () => { this.touchNitro = false; nitroBg.setAlpha(0.18); });
+    nitroBg.on("pointerout",  () => { this.touchNitro = false; nitroBg.setAlpha(0.18); });
   }
 }

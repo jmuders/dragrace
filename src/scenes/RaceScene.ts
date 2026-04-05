@@ -68,6 +68,7 @@ export class RaceScene extends Phaser.Scene {
   private feedbackTimer = 0;
   private gaugeY!: number;
   private spdGaugeX!: number;
+  private rpmGaugeX!: number;
 
   private finishLineGfx!: Phaser.GameObjects.Graphics;
 
@@ -426,7 +427,10 @@ export class RaceScene extends Phaser.Scene {
   private buildHUD(W: number, H: number): void {
     const HUD_H = 110;
     this.gaugeY  = H - 60;
-    const gRpmX  = 72;
+    // Shift button left edge = W - 80 - 155/2 = W - 157.5; place tachometer just left of it
+    const TACH_BEZEL_R = RaceScene.ARC_R + 7; // 45px
+    const gRpmX  = W - 157.5 - 8 - TACH_BEZEL_R;
+    this.rpmGaugeX = gRpmX;
     // Throttle button right edge ≈ 80 + 155/2 = 157.5; place speedometer right next to it
     const SPD_ARC_R = 50;
     const SPD_ARC_W = 13;
@@ -440,7 +444,7 @@ export class RaceScene extends Phaser.Scene {
     this.add.rectangle(0, H - HUD_H, W, 2, 0x333333).setOrigin(0, 0);
     this.add.rectangle(0, H - HUD_H + 2, W, 1, 0x1a1a1a).setOrigin(0, 0);
 
-    // ── Left gauge: RPM tachometer ────────────────────────────────────────
+    // ── Right side gauge: RPM tachometer (just left of shift/nitro buttons) ─
     this.buildGaugeFace(gRpmX, this.gaugeY, 8, [
       { low: LAUNCH_RPM_GOOD_LOW    / MAX_RPM, high: LAUNCH_RPM_GOOD_HIGH    / MAX_RPM, color: 0x448800, alpha: 0.5 },
       { low: LAUNCH_RPM_PERFECT_LOW / MAX_RPM, high: LAUNCH_RPM_PERFECT_HIGH / MAX_RPM, color: 0x00dd44, alpha: 0.7 },
@@ -518,7 +522,7 @@ export class RaceScene extends Phaser.Scene {
       : p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH ? 0x00dd44
       : p.rpm >= LAUNCH_RPM_GOOD_LOW ? 0xaadd00
       : 0xff6600;
-    this.drawGaugeFill(this.rpmGauge, 72, this.gaugeY, p.rpm, MAX_RPM, rpmColor);
+    this.drawGaugeFill(this.rpmGauge, this.rpmGaugeX, this.gaugeY, p.rpm, MAX_RPM, rpmColor);
     this.rpmValText.setText(`${Math.round(p.rpm)}`).setColor(
       p.rpm > 7500 ? "#ff4422" : p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH ? "#44ee88" : "#ff8844"
     );

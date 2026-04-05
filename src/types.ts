@@ -39,6 +39,7 @@ export interface CarState {
   gear: number;        // 1-4
   nitroRemaining: number; // seconds of nitro left
   nitroActive: boolean;
+  revLimiterActive: boolean;
   finished: boolean;
   finishTime: number;  // seconds since lights green, 0 if not finished
 }

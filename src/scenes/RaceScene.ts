@@ -5,6 +5,7 @@ import {
   QUARTER_MILE_METERS, MAX_RPM, NITRO_DURATION,
   LAUNCH_RPM_GOOD_LOW, LAUNCH_RPM_GOOD_HIGH,
   LAUNCH_RPM_PERFECT_LOW, LAUNCH_RPM_PERFECT_HIGH,
+  SHIFT_RPM_IDEAL, SHIFT_RPM_PERFECT_WINDOW, REV_LIMITER_WINDOW,
 } from "../constants";
 import { createCarTexture, preloadCarTextures, getCarDisplayScale, CarType } from "../graphics/CarSprites";
 
@@ -136,7 +137,8 @@ export class RaceScene extends Phaser.Scene {
     this.playerSprite.x = TRACK_START_X + (p.distance / QUARTER_MILE_METERS) * TRACK_WIDTH;
     this.cpuSprite.x    = TRACK_START_X + (c.distance / QUARTER_MILE_METERS) * TRACK_WIDTH;
 
-    if (state.phase === RacePhase.Racing && throttle) {
+    // Scroll world based on car speed – always active once moving, giving proper momentum feel
+    if (state.phase === RacePhase.Racing && p.speed > 0.5) {
       const scroll = p.speed * 40;
       this.bgClouds.forEach(r => {
         r.x -= scroll * dt * 0.15;
@@ -152,6 +154,7 @@ export class RaceScene extends Phaser.Scene {
       });
     }
 
+    // Speed lines – visible whenever moving fast enough (not just when throttling)
     const showLines = state.phase === RacePhase.Racing && p.speed > 20;
     this.speedLines.forEach((r, i) => {
       r.setVisible(showLines);
@@ -163,9 +166,13 @@ export class RaceScene extends Phaser.Scene {
       }
     });
 
+    // Car shake: nitro gives big shake, rev limiter gives a stiff micro-stutter
     if (p.nitroActive) {
       this.playerSprite.x += (Math.random() - 0.5) * 2;
       this.playerSprite.y += (Math.random() - 0.5) * 1.5;
+    } else if (p.revLimiterActive) {
+      this.playerSprite.x += (Math.random() - 0.5) * 0.8;
+      this.playerSprite.y = PLAYER_LANE_Y + (Math.random() - 0.5) * 0.6;
     } else {
       this.playerSprite.y = PLAYER_LANE_Y;
     }
@@ -516,15 +523,27 @@ export class RaceScene extends Phaser.Scene {
   }
 
   private updateHUD(state: ReturnType<RaceSimulation["getState"]>, p: typeof state.player): void {
-    // RPM gauge colour: green at launch window, orange mid, red at redline
-    const rpmColor = p.rpm > 7500 ? 0xff2200
+    const inShiftZone = state.phase === RacePhase.Racing && p.gear < 4
+      && Math.abs(p.rpm - SHIFT_RPM_IDEAL) <= SHIFT_RPM_PERFECT_WINDOW * 2;
+    const atLimiter = p.revLimiterActive;
+
+    // RPM gauge colour hierarchy: limiter flash > shift zone > launch window zones
+    const rpmColor = atLimiter
+      ? (Math.floor(Date.now() / 80) % 2 === 0 ? 0xff0000 : 0xff6600) // alternating flash
+      : inShiftZone ? 0x00ffcc
+      : p.rpm > MAX_RPM - REV_LIMITER_WINDOW * 2 ? 0xff3300
       : p.rpm > LAUNCH_RPM_GOOD_HIGH ? 0xff6600
       : p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH ? 0x00dd44
       : p.rpm >= LAUNCH_RPM_GOOD_LOW ? 0xaadd00
       : 0xff6600;
+
     this.drawGaugeFill(this.rpmGauge, this.rpmGaugeX, this.gaugeY, p.rpm, MAX_RPM, rpmColor);
     this.rpmValText.setText(`${Math.round(p.rpm)}`).setColor(
-      p.rpm > 7500 ? "#ff4422" : p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH ? "#44ee88" : "#ff8844"
+      atLimiter ? "#ff2200"
+        : inShiftZone ? "#00ffcc"
+        : p.rpm > MAX_RPM - REV_LIMITER_WINDOW * 2 ? "#ff4422"
+        : p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH ? "#44ee88"
+        : "#ff8844"
     );
 
     const mph = Math.round(p.speed * 2.237);
@@ -532,7 +551,9 @@ export class RaceScene extends Phaser.Scene {
     this.drawGaugeFill(this.speedGauge, this.spdGaugeX, this.gaugeY, mph, RaceScene.MAX_MPH, spdColor, 50, 13);
     this.speedText.setText(`${mph}`).setColor(mph > 150 ? "#ffffff" : "#44ccff");
 
-    this.gearText.setText(`GEAR  ${p.gear}`);
+    // Gear text highlights cyan when in the ideal shift zone
+    this.gearText.setText(`GEAR  ${p.gear}`)
+      .setColor(inShiftZone ? "#00ffcc" : atLimiter ? "#ff4422" : "#aaaaaa");
 
     if (state.phase === RacePhase.Racing) {
       this.timerText.setText(state.elapsed.toFixed(3));

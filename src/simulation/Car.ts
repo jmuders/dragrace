@@ -11,6 +11,8 @@ import {
   SHIFT_SPEED_LOSS, SHIFT_RPM_DROP_FACTOR,
   NITRO_DURATION, NITRO_FORCE, NITRO_RPM_BOOST,
   QUARTER_MILE_METERS,
+  ENGINE_BRAKING_FORCE,
+  REV_LIMITER_WINDOW,
 } from "../constants";
 import {
   CarState, PlayerInput, LaunchGrade, ShiftGrade, ShiftEvent,
@@ -24,6 +26,7 @@ export class Car {
   gear = 1;
   nitroRemaining = NITRO_DURATION;
   nitroActive = false;
+  revLimiterActive = false;
   finished = false;
   finishTime = 0;
 
@@ -32,12 +35,17 @@ export class Car {
   shiftEvents: ShiftEvent[] = [];
 
   // ── internal penalty state ────────────────────────────────────────────────
-  private penaltyTimer = 0;      // seconds remaining on launch penalty
-  private launchMultiplier = 1;  // active force multiplier from launch grade
-  private launched = false;      // true once throttle hit on green
+  private penaltyTimer = 0;       // seconds remaining on launch penalty
+  private penaltyDuration = 0;    // total duration of this penalty (for ramp)
+  private penaltyBase = 1;        // initial multiplier when penalty started (for ramp)
+  private launchMultiplier = 1;   // active force multiplier from launch grade
+  private launched = false;       // true once throttle hit on green
+
+  // ── RPM smoothing ─────────────────────────────────────────────────────────
+  private targetRpm = IDLE_RPM;   // wheel-speed-derived target RPM
 
   // ── race clock ────────────────────────────────────────────────────────────
-  private elapsedTime = 0;       // seconds since green light
+  private elapsedTime = 0;        // seconds since green light
 
   // ─── Staging phase: player revs engine ───────────────────────────────────
 
@@ -66,11 +74,19 @@ export class Car {
     if (!this.launched && input.throttle) {
       this.launched = true;
       this.launchGrade = this.evaluateLaunch(this.rpm);
-      this.launchMultiplier = this.launchMultiplierForGrade(this.launchGrade);
-      if (this.launchGrade !== LaunchGrade.Perfect && this.launchGrade !== LaunchGrade.Good) {
-        this.penaltyTimer = this.launchGrade === LaunchGrade.Wheelspin
-          ? WHEELSPIN_DURATION
-          : BOG_DURATION;
+      const mult = this.launchMultiplierForGrade(this.launchGrade);
+      this.launchMultiplier = mult;
+      this.penaltyBase = mult;
+
+      if (this.launchGrade === LaunchGrade.Wheelspin) {
+        this.penaltyTimer = WHEELSPIN_DURATION;
+        this.penaltyDuration = WHEELSPIN_DURATION;
+      } else if (this.launchGrade === LaunchGrade.Bog) {
+        this.penaltyTimer = BOG_DURATION;
+        this.penaltyDuration = BOG_DURATION;
+      } else {
+        this.penaltyTimer = 0;
+        this.penaltyDuration = 0;
       }
     }
 
@@ -90,14 +106,22 @@ export class Car {
     if (this.launched && input.throttle) {
       this.physicsStep(dt);
     } else if (this.launched) {
-      // Coasting (lifted throttle) – just apply drag
+      // Coasting – apply drag + gentle engine braking
       this.coastStep(dt);
     }
 
-    // ── Tick down launch penalty timer ───────────────────────────────────
+    // ── Smooth launch penalty ramp-out ────────────────────────────────────
+    // Ramp launchMultiplier from penaltyBase back to 1.0 as timer counts down
     if (this.penaltyTimer > 0) {
       this.penaltyTimer = Math.max(0, this.penaltyTimer - dt);
-      if (this.penaltyTimer === 0) this.launchMultiplier = 1;
+      if (this.penaltyTimer === 0) {
+        this.launchMultiplier = 1;
+      } else {
+        const progress = 1 - (this.penaltyTimer / this.penaltyDuration);
+        // Ease-out: slow start, fast finish – feels like traction being found
+        const eased = Math.pow(progress, 0.6);
+        this.launchMultiplier = this.penaltyBase + (1 - this.penaltyBase) * eased;
+      }
     }
 
     // ── Finish check ─────────────────────────────────────────────────────
@@ -117,6 +141,7 @@ export class Car {
       gear: this.gear,
       nitroRemaining: this.nitroRemaining,
       nitroActive: this.nitroActive,
+      revLimiterActive: this.revLimiterActive,
       finished: this.finished,
       finishTime: this.finishTime,
     };
@@ -137,10 +162,10 @@ export class Car {
 
   private launchMultiplierForGrade(grade: LaunchGrade): number {
     switch (grade) {
-      case LaunchGrade.Perfect: return 1.05; // slight reward
-      case LaunchGrade.Good:    return 1.0;
+      case LaunchGrade.Perfect:   return 1.08; // bigger reward for perfect launch
+      case LaunchGrade.Good:      return 1.0;
       case LaunchGrade.Wheelspin: return WHEELSPIN_PENALTY;
-      case LaunchGrade.Bog:     return BOG_PENALTY;
+      case LaunchGrade.Bog:       return BOG_PENALTY;
     }
   }
 
@@ -159,6 +184,7 @@ export class Car {
       IDLE_RPM,
       this.rpm * (newRatio / oldRatio) * SHIFT_RPM_DROP_FACTOR,
     );
+    this.targetRpm = this.rpm;
 
     const event: ShiftEvent = {
       gear: this.gear,
@@ -181,11 +207,23 @@ export class Car {
   private physicsStep(dt: number): void {
     const ratio = GEAR_RATIOS[this.gear];
 
-    // Torque curve: peak at PEAK_POWER_RPM, falls off above/below
+    // Torque curve: smooth bell – rises steeply into the power band, steeper falloff
+    // encourages shifting before redline
     const torqueFactor = this.torqueCurve(this.rpm);
+
+    // Rev limiter: progressively cuts drive force as RPM approaches MAX_RPM
+    const limiterRpmLow = MAX_RPM - REV_LIMITER_WINDOW;
+    let limiterFactor = 1.0;
+    if (this.rpm >= limiterRpmLow) {
+      limiterFactor = 1.0 - (this.rpm - limiterRpmLow) / REV_LIMITER_WINDOW;
+      limiterFactor = Math.max(0, limiterFactor);
+    }
+    this.revLimiterActive = this.rpm >= limiterRpmLow;
+
     const driveForce = (ENGINE_TORQUE_BASE * torqueFactor * ratio * FINAL_DRIVE)
       / TYRE_RADIUS
-      * this.launchMultiplier;
+      * this.launchMultiplier
+      * limiterFactor;
 
     const nitroForce = this.nitroActive ? NITRO_FORCE : 0;
     const nitroRpmBoost = this.nitroActive ? NITRO_RPM_BOOST : 0;
@@ -197,36 +235,53 @@ export class Car {
     this.speed = Math.max(0, this.speed + acceleration * dt);
     this.distance += this.speed * dt;
 
-    // Update RPM based on current wheel speed & gear ratio
+    // Target RPM from wheel speed; blend toward it with a short lag for feel
     const wheelRPM = (this.speed / TYRE_RADIUS) * (60 / (2 * Math.PI));
-    const targetRPM = wheelRPM * ratio * FINAL_DRIVE + nitroRpmBoost * dt;
-    // Blend toward wheel-derived RPM with a short lag for feel
-    this.rpm = Math.min(MAX_RPM, Math.max(IDLE_RPM, targetRPM));
+    this.targetRpm = Math.min(MAX_RPM, wheelRPM * ratio * FINAL_DRIVE + nitroRpmBoost * dt);
+
+    // Smooth RPM transition (80 ms lag) – prevents instant needle jumps on shifts
+    const rpmLag = 1 - Math.exp(-dt / 0.08);
+    this.rpm = Math.min(MAX_RPM, Math.max(IDLE_RPM, this.rpm + (this.targetRpm - this.rpm) * rpmLag));
   }
 
   private coastStep(dt: number): void {
-    const drag = AERO_DRAG * this.speed * this.speed + ROLLING_RESISTANCE;
-    const decel = drag / CAR_MASS;
+    this.revLimiterActive = false;
+
+    // Aerodynamic drag (quadratic) + rolling resistance
+    const aeroDrag = AERO_DRAG * this.speed * this.speed;
+    // Gentle engine braking: less than full drag, scaled down in higher gears
+    // so lifting at top speed doesn't feel like hitting a wall
+    const gearFactor = GEAR_RATIOS[this.gear] / GEAR_RATIOS[1];
+    const engineBraking = this.speed > 2 ? ENGINE_BRAKING_FORCE * gearFactor : 0;
+
+    const totalResistance = aeroDrag + ROLLING_RESISTANCE + engineBraking;
+    const decel = totalResistance / CAR_MASS;
     this.speed = Math.max(0, this.speed - decel * dt);
     this.distance += this.speed * dt;
 
-    // RPM follows wheel speed
+    // RPM follows wheel speed (engine braking provides drag, RPM stays elevated slightly)
     const wheelRPM = (this.speed / TYRE_RADIUS) * (60 / (2 * Math.PI));
     const ratio = GEAR_RATIOS[this.gear];
-    this.rpm = Math.max(IDLE_RPM, wheelRPM * ratio * FINAL_DRIVE);
+    this.targetRpm = Math.max(IDLE_RPM, wheelRPM * ratio * FINAL_DRIVE);
+    const rpmLag = 1 - Math.exp(-dt / 0.12);
+    this.rpm = Math.max(IDLE_RPM, this.rpm + (this.targetRpm - this.rpm) * rpmLag);
   }
 
   /**
-   * Simplified torque curve:
-   * Rises linearly to PEAK_POWER_RPM, then falls off.
-   * Returns a factor in [0.5, 1.0].
+   * Improved torque curve with a pronounced power band.
+   * - Rises on a quadratic curve to PEAK_POWER_RPM (steeper than linear)
+   * - Steeper falloff above peak to reward shifting at the right time
+   * Returns a factor in [0.42, 1.0].
    */
   private torqueCurve(rpm: number): number {
     if (rpm <= PEAK_POWER_RPM) {
-      return 0.55 + 0.45 * (rpm / PEAK_POWER_RPM);
+      // Quadratic rise: starts sluggish at idle, accelerates quickly in the mid/upper band
+      const t = rpm / PEAK_POWER_RPM;
+      return 0.42 + 0.58 * (t * t);
     }
-    // Above peak: falls linearly to 0.6 at MAX_RPM
+    // Above peak: steeper falloff — falls to 0.45 at redline (was 0.60)
+    // This makes the "shift zone" feel much more meaningful
     const ratio = (rpm - PEAK_POWER_RPM) / (MAX_RPM - PEAK_POWER_RPM);
-    return 1.0 - 0.40 * ratio;
+    return 1.0 - 0.55 * ratio;
   }
 }

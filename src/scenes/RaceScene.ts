@@ -6,7 +6,7 @@ import {
   LAUNCH_RPM_GOOD_LOW, LAUNCH_RPM_GOOD_HIGH,
   LAUNCH_RPM_PERFECT_LOW, LAUNCH_RPM_PERFECT_HIGH,
 } from "../constants";
-import { createCarTexture, CarType } from "../graphics/CarSprites";
+import { createCarTexture, preloadCarTextures, getCarDisplayScale, CarType } from "../graphics/CarSprites";
 
 function gradeColour(grade: ShiftGrade | LaunchGrade): string {
   switch (grade) {
@@ -69,6 +69,10 @@ export class RaceScene extends Phaser.Scene {
   private finishLineGfx!: Phaser.GameObjects.Graphics;
 
   constructor() { super({ key: "RaceScene" }); }
+
+  preload(): void {
+    preloadCarTextures(this);
+  }
 
   create(data?: { carType?: CarType }): void {
     this.carType = data?.carType ?? "silver";
@@ -272,9 +276,9 @@ export class RaceScene extends Phaser.Scene {
 
   private buildCars(playerKey: string, cpuKey: string): void {
     this.playerSprite = this.add.image(TRACK_START_X, PLAYER_LANE_Y, playerKey)
-      .setOrigin(0.5, 0.7).setScale(1.8);
+      .setOrigin(0.5, 0.7).setScale(getCarDisplayScale(this, playerKey, 288));
     this.cpuSprite = this.add.image(TRACK_START_X, CPU_LANE_Y, cpuKey)
-      .setOrigin(0.5, 0.7).setScale(1.8);
+      .setOrigin(0.5, 0.7).setScale(getCarDisplayScale(this, cpuKey, 288));
   }
 
   private buildSpeedLines(): void {

@@ -6,13 +6,21 @@
  *
  * Cars face RIGHT (front on the right, rear/tail on the left).
  * Approximate size: 40×18 art pixels → 160×72 rendered pixels.
+ *
+ * PNG sprites take priority: call preloadCarTextures(scene) in your scene's
+ * preload() method. Place PNG files at:
+ *   public/assets/car_silver.png
+ *   public/assets/car_orange.png
+ *   public/assets/car_red.png
+ *   public/assets/car_green.png
+ *
+ * White (R≥248, G≥248, B≥248) pixels are converted to transparent automatically.
+ * If a PNG is missing, the procedural pixel-art fallback is used.
  */
 
 const PX = 4; // pixels per art-grid cell
 
 // ─── Palette entries (ARGB packed for Phaser Graphics) ────────────────────────
-// We'll use a draw-calls approach instead of pixel buffers, since Phaser
-// Graphics.fillRect is simpler than raw texture writing.
 
 type Color = number; // 0xRRGGBB
 
@@ -296,17 +304,96 @@ const CAR_DEFS: Record<CarType, CarDef> = {
   green:  GREEN_SUPER,
 };
 
+// ─── PNG sprite loading ───────────────────────────────────────────────────────
+
+/**
+ * Queue PNG sprites for loading. Call this in your scene's preload() method.
+ * PNG files must be placed in public/assets/ with names car_silver.png, etc.
+ * If a PNG is missing the procedural fallback is used automatically.
+ */
+export function preloadCarTextures(scene: Phaser.Scene): void {
+  const types: CarType[] = ["silver", "orange", "red", "green"];
+  for (const type of types) {
+    const srcKey = `car_src_${type}`;
+    if (!scene.textures.exists(srcKey)) {
+      scene.load.image(srcKey, `assets/car_${type}.png`);
+    }
+  }
+}
+
+/**
+ * Returns a display scale so the car sprite renders at approximately targetW
+ * pixels wide in the game world. Pass the texture key and desired pixel width.
+ */
+export function getCarDisplayScale(scene: Phaser.Scene, key: string, targetW: number): number {
+  const tex = scene.textures.get(key);
+  const w = tex?.source?.[0]?.width ?? 0;
+  return w > 0 ? targetW / w : 1;
+}
+
+/**
+ * Reads a preloaded PNG texture, strips its white background (pixels where
+ * R≥248, G≥248, B≥248 become fully transparent), and registers the result
+ * under destKey in the texture manager.
+ */
+function buildTransparentTexture(
+  scene: Phaser.Scene,
+  srcKey: string,
+  destKey: string,
+): void {
+  const src = scene.textures.get(srcKey);
+  const srcImg = src.source[0].image as HTMLImageElement;
+  const w = srcImg.naturalWidth  || srcImg.width;
+  const h = srcImg.naturalHeight || srcImg.height;
+
+  const canvas = document.createElement("canvas");
+  canvas.width  = w;
+  canvas.height = h;
+
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(srcImg, 0, 0);
+
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const d = imgData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i] >= 248 && d[i + 1] >= 248 && d[i + 2] >= 248) {
+      d[i + 3] = 0;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  scene.textures.addCanvas(destKey, canvas);
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
  * Creates a named texture for the given car type in `scene`'s texture manager.
  * The texture key is `car_<type>`.
+ *
+ * Priority:
+ *  1. Already cached → return immediately.
+ *  2. PNG preloaded via preloadCarTextures() → strip white bg, cache, return.
+ *  3. Procedural pixel-art fallback.
  */
 export function createCarTexture(scene: Phaser.Scene, type: CarType): string {
-  const key = `car_${type}`;
+  const key    = `car_${type}`;
+  const srcKey = `car_src_${type}`;
+
   if (scene.textures.exists(key)) return key;
 
-  const def = CAR_DEFS[type];
+  // ── PNG path ──────────────────────────────────────────────────────────────
+  if (scene.textures.exists(srcKey)) {
+    try {
+      buildTransparentTexture(scene, srcKey, key);
+      return key;
+    } catch {
+      // PNG processing failed – fall through to procedural
+    }
+  }
+
+  // ── Procedural fallback ───────────────────────────────────────────────────
+  const def  = CAR_DEFS[type];
   const texW = def.w * PX;
   const texH = def.h * PX;
 

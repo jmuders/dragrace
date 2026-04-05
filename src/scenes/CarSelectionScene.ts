@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { createCarTexture, CarType } from "../graphics/CarSprites";
+import { createCarTexture, preloadCarTextures, getCarDisplayScale, CarType } from "../graphics/CarSprites";
 
 interface CarOption {
   type: CarType;
@@ -25,6 +25,10 @@ export class CarSelectionScene extends Phaser.Scene {
   private taglineText!: Phaser.GameObjects.Text;
 
   constructor() { super({ key: "CarSelectionScene" }); }
+
+  preload(): void {
+    preloadCarTextures(this);
+  }
 
   create(): void {
     const { width: W, height: H } = this.scale;
@@ -56,7 +60,8 @@ export class CarSelectionScene extends Phaser.Scene {
       this.cards.push(card);
 
       const key = createCarTexture(this, car.type);
-      this.add.image(x, SLOT_Y - 12, key).setScale(1.1);
+      const scale = getCarDisplayScale(this, key, 190);
+      this.add.image(x, SLOT_Y - 12, key).setScale(scale);
 
       this.add.text(x, SLOT_Y + 50, `0${i + 1}`, {
         fontSize: "11px", fontFamily: "monospace", color: "#333333",

@@ -14,9 +14,9 @@ const CARS: CarOption[] = [
 ];
 
 const SLOT_X = [160, 400, 640];
-const SLOT_Y = 285;
+const SLOT_Y = 200;
 const CARD_W = 210;
-const CARD_H = 130;
+const CARD_H = 110;
 
 export class CarSelectionScene extends Phaser.Scene {
   private selectedIndex = 0;
@@ -32,18 +32,18 @@ export class CarSelectionScene extends Phaser.Scene {
 
     // ── Background ────────────────────────────────────────────────────────
     this.add.rectangle(0, 0, W, H, 0x0a0a0a).setOrigin(0, 0);
-    for (let i = 0; i < 8; i++) {
-      this.add.rectangle(cx - 4, 80 + i * 80, 8, 50, 0x1c1c1c);
+    for (let i = 0; i < 5; i++) {
+      this.add.rectangle(cx - 4, 55 + i * 65, 8, 40, 0x1c1c1c);
     }
 
     // ── Title ─────────────────────────────────────────────────────────────
-    this.add.text(cx, 55, "SELECT YOUR CAR", {
-      fontSize: "44px", fontFamily: "monospace",
+    this.add.text(cx, 36, "SELECT YOUR CAR", {
+      fontSize: "36px", fontFamily: "monospace",
       color: "#ff4400", stroke: "#000", strokeThickness: 5,
     }).setOrigin(0.5);
 
-    this.add.text(cx, 102, "← →  BROWSE     ENTER  RACE", {
-      fontSize: "13px", fontFamily: "monospace", color: "#444444",
+    this.add.text(cx, 70, "← →  BROWSE     ENTER  RACE", {
+      fontSize: "12px", fontFamily: "monospace", color: "#444444",
     }).setOrigin(0.5);
 
     // ── Car cards ─────────────────────────────────────────────────────────
@@ -86,19 +86,19 @@ export class CarSelectionScene extends Phaser.Scene {
       this.selectCar((this.selectedIndex + 1) % CARS.length));
 
     // ── Info panel ────────────────────────────────────────────────────────
-    this.add.rectangle(cx, 404, 500, 56, 0x111111).setStrokeStyle(1, 0x2a2a2a);
-    this.nameText = this.add.text(cx, 392, "", {
-      fontSize: "22px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
+    this.add.rectangle(cx, 310, 500, 48, 0x111111).setStrokeStyle(1, 0x2a2a2a);
+    this.nameText = this.add.text(cx, 299, "", {
+      fontSize: "20px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
-    this.taglineText = this.add.text(cx, 418, "", {
-      fontSize: "14px", fontFamily: "monospace", color: "#777777",
+    this.taglineText = this.add.text(cx, 322, "", {
+      fontSize: "13px", fontFamily: "monospace", color: "#777777",
     }).setOrigin(0.5);
 
     // ── Race button ───────────────────────────────────────────────────────
-    const btnBg = this.add.rectangle(cx, 500, 240, 54, 0xff4400)
+    const btnBg = this.add.rectangle(cx, 382, 220, 46, 0xff4400)
       .setInteractive({ useHandCursor: true });
-    const btnText = this.add.text(cx, 500, "RACE!", {
-      fontSize: "28px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
+    const btnText = this.add.text(cx, 382, "RACE!", {
+      fontSize: "24px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
 
     btnBg.on("pointerover", () => btnBg.setFillStyle(0xff6622));
@@ -112,8 +112,8 @@ export class CarSelectionScene extends Phaser.Scene {
     });
 
     // ── Back link ─────────────────────────────────────────────────────────
-    const backText = this.add.text(cx, 558, "← BACK TO MENU", {
-      fontSize: "13px", fontFamily: "monospace", color: "#444444",
+    const backText = this.add.text(cx, 428, "← BACK TO MENU", {
+      fontSize: "12px", fontFamily: "monospace", color: "#444444",
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     backText.on("pointerover", () => backText.setColor("#888888"));
     backText.on("pointerout",  () => backText.setColor("#444444"));

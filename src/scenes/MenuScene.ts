@@ -34,7 +34,18 @@ export class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // ── Controls reference ────────────────────────────────────────────────
-    const controlLines = [
+    const isTouch = this.sys.game.device.input.touch;
+
+    const controlLines = isTouch ? [
+      "CONTROLS",
+      "",
+      "THROTTLE  –  hold (left)",
+      "SHIFT     –  tap  (right top)",
+      "NITRO     –  hold (right bot)",
+      "",
+      "Rev to the launch window,",
+      "then nail it on green!",
+    ] : [
       "CONTROLS",
       "",
       "SPACE / W  –  hold throttle",

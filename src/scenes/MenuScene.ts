@@ -89,11 +89,11 @@ export class MenuScene extends Phaser.Scene {
 
     btnBg.on("pointerover", () => btnBg.setFillStyle(0xff6622));
     btnBg.on("pointerout",  () => btnBg.setFillStyle(0xff4400));
-    btnBg.on("pointerdown", () => this.scene.start("RaceScene"));
+    btnBg.on("pointerdown", () => this.scene.start("CarSelectionScene"));
 
     // Also allow Enter / Space to start
-    this.input.keyboard!.on("keydown-ENTER", () => this.scene.start("RaceScene"));
-    this.input.keyboard!.on("keydown-SPACE", () => this.scene.start("RaceScene"));
+    this.input.keyboard!.on("keydown-ENTER", () => this.scene.start("CarSelectionScene"));
+    this.input.keyboard!.on("keydown-SPACE", () => this.scene.start("CarSelectionScene"));
 
     // Pulse the button
     this.tweens.add({

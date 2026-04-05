@@ -407,35 +407,81 @@ export class RaceScene extends Phaser.Scene {
   private buildTouchControls(w: number, h: number): void {
     if (!this.sys.game.device.input.touch) return;
     const depth = 20;
+
+    interface BtnHandle {
+      zone: Phaser.GameObjects.Zone;
+      setPressed: (pressed: boolean) => void;
+    }
+
     const makeBtn = (
       x: number, y: number, bw: number, bh: number,
-      colour: number, label: string, sublabel: string,
-    ): Phaser.GameObjects.Rectangle => {
-      const bg = this.add.rectangle(x, y, bw, bh, colour)
-        .setAlpha(0.18).setInteractive().setDepth(depth);
-      this.add.text(x, sublabel ? y - 10 : y, label, {
-        fontSize: "15px", fontFamily: "monospace", color: "#ffffff",
-      }).setOrigin(0.5).setAlpha(0.9).setDepth(depth + 1);
-      if (sublabel) {
-        this.add.text(x, y + 14, sublabel, {
-          fontSize: "11px", fontFamily: "monospace", color: "#aaaaaa",
-        }).setOrigin(0.5).setAlpha(0.85).setDepth(depth + 1);
+      colour: number, icon: string, label: string, sublabel: string,
+    ): BtnHandle => {
+      const r = Math.min(24, bh * 0.3);
+      const gfx = this.add.graphics().setDepth(depth);
+
+      const draw = (pressed: boolean) => {
+        gfx.clear();
+        // Drop shadow
+        gfx.fillStyle(0x000000, 0.35);
+        gfx.fillRoundedRect(x - bw / 2 + 4, y - bh / 2 + 5, bw, bh, r);
+        // Button body
+        gfx.fillStyle(colour, pressed ? 0.72 : 0.32);
+        gfx.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, r);
+        // Inner highlight (gloss strip)
+        gfx.fillStyle(0xffffff, pressed ? 0.06 : 0.18);
+        gfx.fillRoundedRect(
+          x - bw / 2 + 8, y - bh / 2 + 8,
+          bw - 16, bh * 0.38,
+          { tl: r - 6, tr: r - 6, bl: 4, br: 4 },
+        );
+        // Coloured border
+        gfx.lineStyle(pressed ? 3 : 2, colour, pressed ? 1.0 : 0.65);
+        gfx.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, r);
+      };
+
+      draw(false);
+
+      // Invisible zone as hit target
+      const zone = this.add.zone(x, y, bw, bh).setDepth(depth + 2).setInteractive();
+
+      // Icon above label
+      if (icon) {
+        this.add.text(x, y - (sublabel ? 22 : 14), icon, {
+          fontSize: "22px", fontFamily: "monospace",
+        }).setOrigin(0.5).setDepth(depth + 1).setAlpha(0.9);
       }
-      return bg;
+      const labelY = icon ? y + (sublabel ? 0 : 8) : (sublabel ? y - 10 : y);
+      this.add.text(x, labelY, label, {
+        fontSize: "14px", fontFamily: "monospace",
+        color: "#ffffff", fontStyle: "bold",
+      }).setOrigin(0.5).setDepth(depth + 1).setAlpha(0.95);
+      if (sublabel) {
+        this.add.text(x, y + (icon ? 18 : 14), sublabel, {
+          fontSize: "11px", fontFamily: "monospace", color: "#ccdeff",
+        }).setOrigin(0.5).setDepth(depth + 1).setAlpha(0.7);
+      }
+
+      return { zone, setPressed: draw };
     };
-    const throttleBg = makeBtn(75, h * 0.82, 140, h * 0.28, 0x2255ff, "THROTTLE", "HOLD");
-    throttleBg.on("pointerdown", () => { this.touchThrottle = true;  throttleBg.setAlpha(0.4); });
-    throttleBg.on("pointerup",   () => { this.touchThrottle = false; throttleBg.setAlpha(0.18); });
-    throttleBg.on("pointerout",  () => { this.touchThrottle = false; throttleBg.setAlpha(0.18); });
-    const shiftBg = makeBtn(w - 75, h * 0.72, 140, h * 0.14, 0xffaa00, "SHIFT", "TAP");
-    shiftBg.on("pointerdown", () => {
+
+    // Left thumb: big throttle button
+    const throttle = makeBtn(80, h * 0.82, 155, h * 0.3, 0x3366ff, "▲", "THROTTLE", "HOLD");
+    throttle.zone.on("pointerdown", () => { this.touchThrottle = true;  throttle.setPressed(true); });
+    throttle.zone.on("pointerup",   () => { this.touchThrottle = false; throttle.setPressed(false); });
+    throttle.zone.on("pointerout",  () => { this.touchThrottle = false; throttle.setPressed(false); });
+
+    // Right thumb: shift (top) + nitro (bottom)
+    const shift = makeBtn(w - 80, h * 0.71, 155, h * 0.16, 0xffaa00, "◆", "SHIFT", "TAP");
+    shift.zone.on("pointerdown", () => {
       this.touchShiftEdge = true;
-      shiftBg.setAlpha(0.55);
-      this.time.delayedCall(130, () => shiftBg.setAlpha(0.18));
+      shift.setPressed(true);
+      this.time.delayedCall(150, () => shift.setPressed(false));
     });
-    const nitroBg = makeBtn(w - 75, h * 0.88, 140, h * 0.14, 0x00ccff, "NITRO", "HOLD");
-    nitroBg.on("pointerdown", () => { this.touchNitro = true;  nitroBg.setAlpha(0.4); });
-    nitroBg.on("pointerup",   () => { this.touchNitro = false; nitroBg.setAlpha(0.18); });
-    nitroBg.on("pointerout",  () => { this.touchNitro = false; nitroBg.setAlpha(0.18); });
+
+    const nitro = makeBtn(w - 80, h * 0.89, 155, h * 0.16, 0x00ccff, "★", "NITRO", "HOLD");
+    nitro.zone.on("pointerdown", () => { this.touchNitro = true;  nitro.setPressed(true); });
+    nitro.zone.on("pointerup",   () => { this.touchNitro = false; nitro.setPressed(false); });
+    nitro.zone.on("pointerout",  () => { this.touchNitro = false; nitro.setPressed(false); });
   }
 }

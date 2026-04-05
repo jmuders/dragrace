@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Drag Race</title>
     <style>
       * {
@@ -16,6 +16,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        width: 100vw;
         height: 100vh;
         overflow: hidden;
         touch-action: none;
@@ -25,9 +26,46 @@
         display: block;
         touch-action: none;
       }
+      #portrait-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: #0a0a0a;
+        color: #fff;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        font-family: sans-serif;
+        text-align: center;
+        gap: 24px;
+      }
+      #portrait-overlay .rotate-icon {
+        font-size: 72px;
+        display: inline-block;
+        animation: rotate-hint 2s ease-in-out infinite;
+      }
+      #portrait-overlay p {
+        font-size: 22px;
+        line-height: 1.5;
+        color: #ccc;
+      }
+      @keyframes rotate-hint {
+        0%, 100% { transform: rotate(0deg); }
+        50% { transform: rotate(90deg); }
+      }
+      @media (orientation: portrait) {
+        #portrait-overlay {
+          display: flex;
+        }
+      }
     </style>
   </head>
   <body>
+    <div id="portrait-overlay">
+      <div class="rotate-icon">&#x1F4F1;</div>
+      <p>Rotate your device to<br><strong>landscape mode</strong> to play</p>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

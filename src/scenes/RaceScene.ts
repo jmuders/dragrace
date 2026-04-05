@@ -67,6 +67,7 @@ export class RaceScene extends Phaser.Scene {
   private feedbackText!: Phaser.GameObjects.Text;
   private feedbackTimer = 0;
   private gaugeY!: number;
+  private spdGaugeX!: number;
 
   private finishLineGfx!: Phaser.GameObjects.Graphics;
 
@@ -341,8 +342,10 @@ export class RaceScene extends Phaser.Scene {
     cx: number, cy: number,
     numTicks: number,
     zones?: Array<{ low: number; high: number; color: number; alpha: number }>,
+    arcR = RaceScene.ARC_R, arcW = RaceScene.ARC_W,
   ): void {
-    const { G_START, G_SWEEP, ARC_R, ARC_W } = RaceScene;
+    const { G_START, G_SWEEP } = RaceScene;
+    const ARC_R = arcR, ARC_W = arcW;
     const G_END = G_START + G_SWEEP;
     const g = this.add.graphics();
 
@@ -400,8 +403,10 @@ export class RaceScene extends Phaser.Scene {
     cx: number, cy: number,
     value: number, maxValue: number,
     color: number,
+    arcR = RaceScene.ARC_R, arcW = RaceScene.ARC_W,
   ): void {
-    const { G_START, G_SWEEP, ARC_R, ARC_W } = RaceScene;
+    const { G_START, G_SWEEP } = RaceScene;
+    const ARC_R = arcR, ARC_W = arcW;
     gfx.clear();
     if (value <= 0) return;
     const frac     = Math.min(value / maxValue, 1);
@@ -422,7 +427,11 @@ export class RaceScene extends Phaser.Scene {
     const HUD_H = 110;
     this.gaugeY  = H - 60;
     const gRpmX  = 72;
-    const gSpdX  = W - 72;
+    // Throttle button right edge ≈ 80 + 155/2 = 157.5; place speedometer right next to it
+    const SPD_ARC_R = 50;
+    const SPD_ARC_W = 13;
+    this.spdGaugeX   = 157 + 10 + SPD_ARC_R + 7; // gap + bezel radius
+    const gSpdX      = this.spdGaugeX;
     const centX  = W / 2;
 
     // ── Panel background ──────────────────────────────────────────────────
@@ -452,7 +461,7 @@ export class RaceScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5);
 
     // ── Right gauge: speed ────────────────────────────────────────────────
-    this.buildGaugeFace(gSpdX, this.gaugeY, 10);
+    this.buildGaugeFace(gSpdX, this.gaugeY, 10, undefined, SPD_ARC_R, SPD_ARC_W);
     this.speedGauge = this.add.graphics();
 
     this.add.text(gSpdX, H - 15, "SPEED", {
@@ -516,7 +525,7 @@ export class RaceScene extends Phaser.Scene {
 
     const mph = Math.round(p.speed * 2.237);
     const spdColor = mph > 150 ? 0xffffff : mph > 80 ? 0x44ddff : 0x0088cc;
-    this.drawGaugeFill(this.speedGauge, this.scale.width - 72, this.gaugeY, mph, RaceScene.MAX_MPH, spdColor);
+    this.drawGaugeFill(this.speedGauge, this.spdGaugeX, this.gaugeY, mph, RaceScene.MAX_MPH, spdColor, 50, 13);
     this.speedText.setText(`${mph}`).setColor(mph > 150 ? "#ffffff" : "#44ccff");
 
     this.gearText.setText(`GEAR  ${p.gear}`);

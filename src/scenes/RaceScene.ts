@@ -68,6 +68,7 @@ export class RaceScene extends Phaser.Scene {
   private feedbackTimer = 0;
   private gaugeY!: number;
   private spdGaugeX!: number;
+  private rpmGaugeX!: number;
 
   private finishLineGfx!: Phaser.GameObjects.Graphics;
 
@@ -426,7 +427,9 @@ export class RaceScene extends Phaser.Scene {
   private buildHUD(W: number, H: number): void {
     const HUD_H = 110;
     this.gaugeY  = H - 60;
-    const gRpmX  = 72;
+    // Shift/nitro button left edge ≈ (W - 80) - 155/2 = W - 157.5; place tachometer just left of it
+    this.rpmGaugeX = W - 157 - 10 - (RaceScene.ARC_R + 7); // gap + bezel radius
+    const gRpmX    = this.rpmGaugeX;
     // Throttle button right edge ≈ 80 + 155/2 = 157.5; place speedometer right next to it
     const SPD_ARC_R = 50;
     const SPD_ARC_W = 13;
@@ -518,7 +521,7 @@ export class RaceScene extends Phaser.Scene {
       : p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH ? 0x00dd44
       : p.rpm >= LAUNCH_RPM_GOOD_LOW ? 0xaadd00
       : 0xff6600;
-    this.drawGaugeFill(this.rpmGauge, 72, this.gaugeY, p.rpm, MAX_RPM, rpmColor);
+    this.drawGaugeFill(this.rpmGauge, this.rpmGaugeX, this.gaugeY, p.rpm, MAX_RPM, rpmColor);
     this.rpmValText.setText(`${Math.round(p.rpm)}`).setColor(
       p.rpm > 7500 ? "#ff4422" : p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH ? "#44ee88" : "#ff8844"
     );

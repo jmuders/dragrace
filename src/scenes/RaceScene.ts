@@ -8,6 +8,8 @@ import {
 } from "../constants";
 import { createCarTexture, CarType } from "../graphics/CarSprites";
 
+const ALL_CAR_TYPES: CarType[] = ["silver", "red", "green", "white", "orange"];
+
 function gradeColour(grade: ShiftGrade | LaunchGrade): string {
   switch (grade) {
     case ShiftGrade.Perfect:
@@ -69,6 +71,15 @@ export class RaceScene extends Phaser.Scene {
   private finishLineGfx!: Phaser.GameObjects.Graphics;
 
   constructor() { super({ key: "RaceScene" }); }
+
+  preload(): void {
+    for (const t of ALL_CAR_TYPES) {
+      const key = `car_${t}`;
+      if (!this.textures.exists(key)) {
+        this.load.image(key, `assets/cars/${t}.png`);
+      }
+    }
+  }
 
   create(data?: { carType?: CarType }): void {
     this.carType = data?.carType ?? "silver";

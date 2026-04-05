@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { createCarTexture, CarType } from "../graphics/CarSprites";
 
+const CAR_TYPES: CarType[] = ["silver", "red", "green", "white", "orange"];
+
 interface CarOption {
   type: CarType;
   name: string;
@@ -8,15 +10,17 @@ interface CarOption {
 }
 
 const CARS: CarOption[] = [
-  { type: "silver", name: "SILVER SEDAN",  tagline: "Balanced & reliable" },
-  { type: "red",    name: "RED COUPE",     tagline: "High-revving powerhouse" },
-  { type: "green",  name: "GREEN SUPER",   tagline: "Aerodynamic specialist" },
+  { type: "silver", name: "SILVER M3",    tagline: "Balanced & reliable" },
+  { type: "red",    name: "RED R8",       tagline: "High-revving powerhouse" },
+  { type: "green",  name: "GREEN SUPER",  tagline: "Aerodynamic specialist" },
+  { type: "white",  name: "WHITE RALLY",  tagline: "Street racing legend" },
 ];
 
-const SLOT_X = [160, 400, 640];
-const SLOT_Y = 200;
-const CARD_W = 210;
-const CARD_H = 110;
+// 4 cards evenly across the 800px canvas
+const SLOT_X = [100, 300, 500, 700];
+const SLOT_Y = 198;
+const CARD_W = 175;
+const CARD_H = 105;
 
 export class CarSelectionScene extends Phaser.Scene {
   private selectedIndex = 0;
@@ -25,6 +29,15 @@ export class CarSelectionScene extends Phaser.Scene {
   private taglineText!: Phaser.GameObjects.Text;
 
   constructor() { super({ key: "CarSelectionScene" }); }
+
+  preload(): void {
+    for (const t of CAR_TYPES) {
+      const key = `car_${t}`;
+      if (!this.textures.exists(key)) {
+        this.load.image(key, `assets/cars/${t}.png`);
+      }
+    }
+  }
 
   create(): void {
     const { width: W, height: H } = this.scale;
@@ -56,9 +69,13 @@ export class CarSelectionScene extends Phaser.Scene {
       this.cards.push(card);
 
       const key = createCarTexture(this, car.type);
-      this.add.image(x, SLOT_Y - 12, key).setScale(1.1);
+      // Scale image to fit nicely inside the card
+      const img = this.add.image(x, SLOT_Y - 10, key);
+      const scaleX = (CARD_W - 20) / img.width;
+      const scaleY = (CARD_H - 40) / img.height;
+      img.setScale(Math.min(scaleX, scaleY, 1.0));
 
-      this.add.text(x, SLOT_Y + 50, `0${i + 1}`, {
+      this.add.text(x, SLOT_Y + 46, `0${i + 1}`, {
         fontSize: "11px", fontFamily: "monospace", color: "#333333",
       }).setOrigin(0.5);
 
@@ -72,12 +89,12 @@ export class CarSelectionScene extends Phaser.Scene {
     });
 
     // ── Nav arrows ────────────────────────────────────────────────────────
-    const arrowLeft = this.add.text(SLOT_X[0] - 110, SLOT_Y, "◄", {
-      fontSize: "28px", fontFamily: "monospace", color: "#ff4400",
+    const arrowLeft = this.add.text(16, SLOT_Y, "◄", {
+      fontSize: "24px", fontFamily: "monospace", color: "#ff4400",
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    const arrowRight = this.add.text(SLOT_X[2] + 110, SLOT_Y, "►", {
-      fontSize: "28px", fontFamily: "monospace", color: "#ff4400",
+    const arrowRight = this.add.text(W - 16, SLOT_Y, "►", {
+      fontSize: "24px", fontFamily: "monospace", color: "#ff4400",
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     arrowLeft.on("pointerdown", () =>

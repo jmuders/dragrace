@@ -285,25 +285,93 @@ const GREEN_SUPER: CarDef = {
   ],
 };
 
+// ─── White sport sedan (BMW E46-style) ──────────────────────────────────────
+
+const WHITE_SEDAN: CarDef = {
+  w: 40, h: 18,
+  rects: [
+    // ── Spoiler ──────────────────────────────────────────────────
+    [1, 4, 4, 1, 0xbbbbbb],
+
+    // ── Roof ─────────────────────────────────────────────────────
+    [7,  2, 18, 1, 0xdddddd],
+    [5,  3, 22, 1, 0xeeeeee],
+    [5,  4, 22, 2, 0xf4f4f4],
+
+    // ── Windows ──────────────────────────────────────────────────
+    [6,  3,  8, 3, 0x3a4f68],
+    [15, 3, 10, 3, 0x4a607a],
+
+    // ── Window divider ───────────────────────────────────────────
+    [14, 3,  1, 3, 0x222222],
+
+    // ── Body ─────────────────────────────────────────────────────
+    [2,  6, 36, 4, 0xf0f0f0],
+    [1,  7, 38, 3, 0xe8e8e8],
+    [0,  8, 40, 2, 0xdcdcdc],
+
+    // ── Lower panel ──────────────────────────────────────────────
+    [1, 10, 38, 1, 0xaaaaaa],
+    [2, 11, 36, 1, 0x888888],
+
+    // ── Taillights ───────────────────────────────────────────────
+    [0,  6,  2, 3, 0xdd2200],
+    [0,  7,  1, 2, 0xff3300],
+
+    // ── Headlights ───────────────────────────────────────────────
+    [37, 7,  2, 2, 0xaaddff],
+    [38, 6,  2, 3, 0x88ccff],
+
+    // ── Front bumper ─────────────────────────────────────────────
+    [36, 9,  4, 2, 0xcccccc],
+
+    // ── Rear bumper ──────────────────────────────────────────────
+    [0,  9,  3, 2, 0xcccccc],
+
+    // ── Side highlight ───────────────────────────────────────────
+    [2,  7, 34, 1, 0xffffff],
+
+    // ── Wheel arches ─────────────────────────────────────────────
+    [3, 11,  8, 1, 0x999999],
+    [28,11,  8, 1, 0x999999],
+
+    // ── Wheels ───────────────────────────────────────────────────
+    [4, 12,  7, 5, 0x1a1a1a],
+    [29,12,  7, 5, 0x1a1a1a],
+
+    // ── Rims ─────────────────────────────────────────────────────
+    [5, 13,  5, 3, 0x777777],
+    [30,13,  5, 3, 0x777777],
+    [6, 14,  3, 1, 0xaaaaaa],
+    [31,14,  3, 1, 0xaaaaaa],
+    [7, 14,  1, 1, 0xcccccc],
+    [32,14,  1, 1, 0xcccccc],
+  ],
+};
+
 // ─── All car definitions ──────────────────────────────────────────────────────
 
-export type CarType = "silver" | "orange" | "red" | "green";
+export type CarType = "silver" | "orange" | "red" | "green" | "white";
 
 const CAR_DEFS: Record<CarType, CarDef> = {
   silver: SILVER_SEDAN,
   orange: ORANGE_SUPER,
   red:    RED_COUPE,
   green:  GREEN_SUPER,
+  white:  WHITE_SEDAN,
 };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Creates a named texture for the given car type in `scene`'s texture manager.
- * The texture key is `car_<type>`.
+ * Returns the texture key for the given car type.
+ * If an external image was pre-loaded (via preload in the scene), it is used
+ * directly. Otherwise the car is drawn procedurally and cached.
+ * External images must be loaded with key `car_<type>` before calling this.
  */
 export function createCarTexture(scene: Phaser.Scene, type: CarType): string {
   const key = `car_${type}`;
+  // If an external image (or already-generated texture) exists, use it.
   if (scene.textures.exists(key)) return key;
 
   const def = CAR_DEFS[type];

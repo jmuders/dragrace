@@ -57,14 +57,16 @@ export class RaceScene extends Phaser.Scene {
   private treeContainer!: Phaser.GameObjects.Container;
   private startBtn!:      Phaser.GameObjects.Container;
 
-  private rpmFill!:      Phaser.GameObjects.Rectangle;
-  private rpmNeedle!:    Phaser.GameObjects.Text;
+  private rpmGauge!:     Phaser.GameObjects.Graphics;
+  private speedGauge!:   Phaser.GameObjects.Graphics;
+  private rpmValText!:   Phaser.GameObjects.Text;
   private speedText!:    Phaser.GameObjects.Text;
   private gearText!:     Phaser.GameObjects.Text;
   private timerText!:    Phaser.GameObjects.Text;
   private nitroFill!:    Phaser.GameObjects.Rectangle;
   private feedbackText!: Phaser.GameObjects.Text;
   private feedbackTimer = 0;
+  private gaugeY!: number;
 
   private finishLineGfx!: Phaser.GameObjects.Graphics;
 
@@ -327,42 +329,164 @@ export class RaceScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-ENTER", () => this.sim.startCountdown());
   }
 
+  // ── Gauge geometry constants ──────────────────────────────────────────────
+  private static readonly G_START = (150 * Math.PI) / 180;  // 8-o'clock start
+  private static readonly G_SWEEP = (240 * Math.PI) / 180;  // 240° arc sweep
+  private static readonly ARC_R   = 38;  // arc centre radius (px)
+  private static readonly ARC_W   = 11;  // arc stroke width (px)
+  private static readonly MAX_MPH = 200; // speedometer max
+
+  /** Draw the static (non-updating) face of a round gauge. */
+  private buildGaugeFace(
+    cx: number, cy: number,
+    numTicks: number,
+    zones?: Array<{ low: number; high: number; color: number; alpha: number }>,
+  ): void {
+    const { G_START, G_SWEEP, ARC_R, ARC_W } = RaceScene;
+    const G_END = G_START + G_SWEEP;
+    const g = this.add.graphics();
+
+    // Subtle outer bezel ring
+    g.lineStyle(2, 0x555555, 0.7);
+    g.strokeCircle(cx, cy, ARC_R + 7);
+
+    // Thin inner ring
+    g.lineStyle(1, 0x333333, 0.5);
+    g.strokeCircle(cx, cy, ARC_R - ARC_W - 3);
+
+    // Background arc track
+    g.lineStyle(ARC_W, 0x1c1c1c, 1);
+    g.beginPath();
+    g.arc(cx, cy, ARC_R, G_START, G_END, false);
+    g.strokePath();
+
+    // Coloured zone bands (e.g. launch windows on tach)
+    if (zones) {
+      for (const z of zones) {
+        const aLow  = G_START + z.low  * G_SWEEP;
+        const aHigh = G_START + z.high * G_SWEEP;
+        g.lineStyle(ARC_W, z.color, z.alpha);
+        g.beginPath();
+        g.arc(cx, cy, ARC_R, aLow, aHigh, false);
+        g.strokePath();
+      }
+    }
+
+    // Tick marks (inside the arc track)
+    for (let i = 0; i <= numTicks; i++) {
+      const angle  = G_START + (i / numTicks) * G_SWEEP;
+      const cos    = Math.cos(angle);
+      const sin    = Math.sin(angle);
+      const major  = (i % 2 === 0);
+      const rInner = ARC_R - ARC_W + (major ? 1 : 3);
+      const rOuter = ARC_R - 2;
+      g.lineStyle(major ? 2 : 1, major ? 0xcccccc : 0x666666, 1);
+      g.beginPath();
+      g.moveTo(cx + cos * rInner, cy + sin * rInner);
+      g.lineTo(cx + cos * rOuter, cy + sin * rOuter);
+      g.strokePath();
+    }
+
+    // Small centre pivot dot
+    g.fillStyle(0x444444, 1);
+    g.fillCircle(cx, cy, 5);
+    g.fillStyle(0x888888, 1);
+    g.fillCircle(cx, cy, 2.5);
+  }
+
+  /** Redraw a gauge's fill arc each frame. */
+  private drawGaugeFill(
+    gfx: Phaser.GameObjects.Graphics,
+    cx: number, cy: number,
+    value: number, maxValue: number,
+    color: number,
+  ): void {
+    const { G_START, G_SWEEP, ARC_R, ARC_W } = RaceScene;
+    gfx.clear();
+    if (value <= 0) return;
+    const frac     = Math.min(value / maxValue, 1);
+    const endAngle = G_START + frac * G_SWEEP;
+    // Soft glow ring
+    gfx.lineStyle(ARC_W + 5, color, 0.18);
+    gfx.beginPath();
+    gfx.arc(cx, cy, ARC_R, G_START, endAngle, false);
+    gfx.strokePath();
+    // Main fill arc
+    gfx.lineStyle(ARC_W, color, 1);
+    gfx.beginPath();
+    gfx.arc(cx, cy, ARC_R, G_START, endAngle, false);
+    gfx.strokePath();
+  }
+
   private buildHUD(W: number, H: number): void {
-    const hudY = H - 46;
-    this.add.rectangle(0, H - 80, W, 80, 0x000000, 0.7).setOrigin(0, 0);
-    this.add.rectangle(0, H - 80, W, 2, 0x444444).setOrigin(0, 0);
+    const HUD_H = 110;
+    this.gaugeY  = H - 60;
+    const gRpmX  = 72;
+    const gSpdX  = W - 72;
+    const centX  = W / 2;
 
-    this.add.text(20, H - 76, "RPM", { fontSize: "12px", fontFamily: "monospace", color: "#888888" });
-    this.add.rectangle(20, hudY - 10, 220, 16, 0x222222).setOrigin(0, 0.5);
+    // ── Panel background ──────────────────────────────────────────────────
+    this.add.rectangle(0, H - HUD_H, W, HUD_H, 0x000000, 0.82).setOrigin(0, 0);
+    // Top border with subtle gradient effect
+    this.add.rectangle(0, H - HUD_H, W, 2, 0x333333).setOrigin(0, 0);
+    this.add.rectangle(0, H - HUD_H + 2, W, 1, 0x1a1a1a).setOrigin(0, 0);
 
-    const barW = 220;
-    const goodLow  = (LAUNCH_RPM_GOOD_LOW  / MAX_RPM) * barW;
-    const goodHigh = (LAUNCH_RPM_GOOD_HIGH / MAX_RPM) * barW;
-    const perfLow  = (LAUNCH_RPM_PERFECT_LOW  / MAX_RPM) * barW;
-    const perfHigh = (LAUNCH_RPM_PERFECT_HIGH / MAX_RPM) * barW;
-    this.add.rectangle(20 + goodLow, hudY - 10, goodHigh - goodLow, 16, 0x448800, 0.35).setOrigin(0, 0.5);
-    this.add.rectangle(20 + perfLow, hudY - 10, perfHigh - perfLow, 16, 0x00ff44, 0.45).setOrigin(0, 0.5);
+    // ── Left gauge: RPM tachometer ────────────────────────────────────────
+    this.buildGaugeFace(gRpmX, this.gaugeY, 8, [
+      { low: LAUNCH_RPM_GOOD_LOW    / MAX_RPM, high: LAUNCH_RPM_GOOD_HIGH    / MAX_RPM, color: 0x448800, alpha: 0.5 },
+      { low: LAUNCH_RPM_PERFECT_LOW / MAX_RPM, high: LAUNCH_RPM_PERFECT_HIGH / MAX_RPM, color: 0x00dd44, alpha: 0.7 },
+    ]);
+    this.rpmGauge = this.add.graphics();
 
-    this.rpmFill = this.add.rectangle(20, hudY - 10, 0, 12, 0xff4400).setOrigin(0, 0.5);
-    this.rpmNeedle = this.add.text(248, hudY - 10, "0 RPM", {
-      fontSize: "13px", fontFamily: "monospace", color: "#ffaa00",
-    }).setOrigin(0, 0.5);
-
-    this.gearText = this.add.text(W / 2, hudY - 16, "GEAR  1", {
-      fontSize: "20px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
-    }).setOrigin(0.5, 0.5);
-    this.speedText = this.add.text(W / 2, hudY + 8, "0 MPH", {
-      fontSize: "16px", fontFamily: "monospace", color: "#88ddff",
+    // Gauge label
+    this.add.text(gRpmX, H - 15, "TACH", {
+      fontSize: "9px", fontFamily: "monospace", color: "#666666",
     }).setOrigin(0.5, 0.5);
 
-    this.timerText = this.add.text(W - 20, hudY - 14, "0.000", {
-      fontSize: "26px", fontFamily: "monospace", color: "#ffff44", fontStyle: "bold",
+    // Value text inside gauge
+    this.rpmValText = this.add.text(gRpmX, this.gaugeY - 4, "0", {
+      fontSize: "11px", fontFamily: "monospace", color: "#ff8844", fontStyle: "bold",
+    }).setOrigin(0.5, 0.5);
+    this.add.text(gRpmX, this.gaugeY + 9, "RPM", {
+      fontSize: "7px", fontFamily: "monospace", color: "#555555",
+    }).setOrigin(0.5, 0.5);
+
+    // ── Right gauge: speed ────────────────────────────────────────────────
+    this.buildGaugeFace(gSpdX, this.gaugeY, 10);
+    this.speedGauge = this.add.graphics();
+
+    this.add.text(gSpdX, H - 15, "SPEED", {
+      fontSize: "9px", fontFamily: "monospace", color: "#666666",
+    }).setOrigin(0.5, 0.5);
+
+    this.speedText = this.add.text(gSpdX, this.gaugeY - 4, "0", {
+      fontSize: "11px", fontFamily: "monospace", color: "#44ccff", fontStyle: "bold",
+    }).setOrigin(0.5, 0.5);
+    this.add.text(gSpdX, this.gaugeY + 9, "MPH", {
+      fontSize: "7px", fontFamily: "monospace", color: "#555555",
+    }).setOrigin(0.5, 0.5);
+
+    // ── Centre: gear + timer + nitro ──────────────────────────────────────
+    this.gearText = this.add.text(centX, H - 90, "GEAR  1", {
+      fontSize: "14px", fontFamily: "monospace", color: "#aaaaaa",
+    }).setOrigin(0.5, 0.5);
+
+    this.timerText = this.add.text(centX, H - 65, "0.000", {
+      fontSize: "30px", fontFamily: "monospace", color: "#ffff44", fontStyle: "bold",
+    }).setOrigin(0.5, 0.5);
+
+    // Nitro bar
+    const nitroBarW = 120;
+    const nitroBarX = centX - nitroBarW / 2;
+    const nitroBarY = H - 30;
+    this.add.text(centX - nitroBarW / 2 - 2, nitroBarY, "NITRO", {
+      fontSize: "8px", fontFamily: "monospace", color: "#555555",
     }).setOrigin(1, 0.5);
+    this.add.rectangle(nitroBarX, nitroBarY, nitroBarW, 6, 0x1a1a1a).setOrigin(0, 0.5);
+    this.add.rectangle(nitroBarX, nitroBarY, nitroBarW, 6, 0x003355, 0.6).setOrigin(0, 0.5);
+    this.nitroFill = this.add.rectangle(nitroBarX, nitroBarY, nitroBarW, 4, 0x00aaff).setOrigin(0, 0.5);
 
-    this.add.text(W - 20, hudY + 12, "NITRO", { fontSize: "11px", fontFamily: "monospace", color: "#aaaaaa" }).setOrigin(1, 0.5);
-    this.add.rectangle(W - 100, hudY + 26, 80, 8, 0x222222).setOrigin(0, 0.5);
-    this.nitroFill = this.add.rectangle(W - 100, hudY + 26, 80, 6, 0x00ccff).setOrigin(0, 0.5);
-
+    // ── Feedback overlay text ─────────────────────────────────────────────
     this.feedbackText = this.add.text(W / 2, H * 0.48, "", {
       fontSize: "34px", fontFamily: "monospace", color: "#ffffff",
       fontStyle: "bold", stroke: "#000", strokeThickness: 4,
@@ -379,19 +503,33 @@ export class RaceScene extends Phaser.Scene {
   }
 
   private updateHUD(state: ReturnType<RaceSimulation["getState"]>, p: typeof state.player): void {
-    const rpmFrac = Math.min(p.rpm / MAX_RPM, 1);
-    this.rpmFill.width = rpmFrac * 220;
-    this.rpmFill.setFillStyle(p.rpm > 7500 ? 0xff0000 : p.rpm > 5500 ? 0xff8800 : 0xff4400);
-    this.rpmNeedle.setText(`${Math.round(p.rpm)} RPM`);
-    this.speedText.setText(`${Math.round(p.speed * 2.237)} MPH`);
+    // RPM gauge colour: green at launch window, orange mid, red at redline
+    const rpmColor = p.rpm > 7500 ? 0xff2200
+      : p.rpm > LAUNCH_RPM_GOOD_HIGH ? 0xff6600
+      : p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH ? 0x00dd44
+      : p.rpm >= LAUNCH_RPM_GOOD_LOW ? 0xaadd00
+      : 0xff6600;
+    this.drawGaugeFill(this.rpmGauge, 72, this.gaugeY, p.rpm, MAX_RPM, rpmColor);
+    this.rpmValText.setText(`${Math.round(p.rpm)}`).setColor(
+      p.rpm > 7500 ? "#ff4422" : p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH ? "#44ee88" : "#ff8844"
+    );
+
+    const mph = Math.round(p.speed * 2.237);
+    const spdColor = mph > 150 ? 0xffffff : mph > 80 ? 0x44ddff : 0x0088cc;
+    this.drawGaugeFill(this.speedGauge, this.scale.width - 72, this.gaugeY, mph, RaceScene.MAX_MPH, spdColor);
+    this.speedText.setText(`${mph}`).setColor(mph > 150 ? "#ffffff" : "#44ccff");
+
     this.gearText.setText(`GEAR  ${p.gear}`);
+
     if (state.phase === RacePhase.Racing) {
       this.timerText.setText(state.elapsed.toFixed(3));
     } else if (state.phase === RacePhase.Finished) {
       this.timerText.setText(p.finishTime > 0 ? p.finishTime.toFixed(3) : "DNF");
     }
-    this.nitroFill.width = (p.nitroRemaining / NITRO_DURATION) * 80;
-    this.nitroFill.setFillStyle(p.nitroActive ? 0x00ffff : 0x0088cc);
+
+    const nitroBarW = 120;
+    this.nitroFill.width = (p.nitroRemaining / NITRO_DURATION) * nitroBarW;
+    this.nitroFill.setFillStyle(p.nitroActive ? 0x00ffff : 0x0066aa);
   }
 
   private showFeedback(text: string, colour: string): void {

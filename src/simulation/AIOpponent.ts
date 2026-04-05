@@ -50,6 +50,7 @@ export class AIOpponent {
       gear: 0,
       nitroRemaining: 0,
       nitroActive: false,
+      revLimiterActive: false,
       finished: this.finished,
       finishTime: this.finishTime,
     };

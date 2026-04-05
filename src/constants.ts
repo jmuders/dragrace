@@ -7,11 +7,18 @@ export const QUARTER_MILE_METERS = 402.336;
 /** Idle RPM when engine is running */
 export const IDLE_RPM = 1000;
 
-/** Rev limiter */
+/** Rev limiter – hard cap */
 export const MAX_RPM = 8500;
 
 /** RPM at which power peaks (torque curve apex used for acceleration calc) */
 export const PEAK_POWER_RPM = 6500;
+
+/**
+ * RPM window below MAX_RPM where the soft rev limiter begins progressively
+ * cutting drive force. Creates an authentic bounce/stutter feel and rewards
+ * shifting before the limiter rather than riding it.
+ */
+export const REV_LIMITER_WINDOW = 200; // starts cutting at 8300 RPM
 
 /** Gear ratios (higher number = more torque multiplication, lower top speed) */
 export const GEAR_RATIOS: readonly number[] = [0, 3.5, 2.2, 1.5, 1.1];
@@ -26,18 +33,32 @@ export const TYRE_RADIUS = 0.33;
 /**
  * Engine force constant.
  * Real formula: F = (torque × gearRatio × finalDrive) / tyreRadius
- * We use a simplified scalar to avoid full torque curves.
  */
 export const ENGINE_TORQUE_BASE = 420; // Nm at peak
 
 /** Vehicle mass in kg */
 export const CAR_MASS = 1200;
 
-/** Aerodynamic drag coefficient (simplified: dragForce = AERO_DRAG × v²) */
-export const AERO_DRAG = 0.45;
+/**
+ * Aerodynamic drag coefficient (dragForce = AERO_DRAG × v²).
+ * Reduced from 0.45 → 0.28 so the car feels weighty and keeps momentum
+ * rather than stopping abruptly when the throttle lifts.
+ */
+export const AERO_DRAG = 0.28;
 
-/** Rolling resistance force (constant) */
-export const ROLLING_RESISTANCE = 180;
+/**
+ * Rolling resistance (constant opposing force, Newtons).
+ * Reduced from 180 → 70 – less artificial "floor friction" so coasting
+ * from high speed feels smooth and progressive.
+ */
+export const ROLLING_RESISTANCE = 70;
+
+/**
+ * Engine braking force applied during coasting (Newtons), scaled by gear ratio.
+ * Gives a realistic resistance when lifting off without the car stopping
+ * immediately – first gear brakes hardest, fourth gear barely resists.
+ */
+export const ENGINE_BRAKING_FORCE = 220;
 
 /** How fast RPM climbs when throttle is open (RPM/s while stationary) */
 export const STAGING_RPM_CLIMB = 3500;
@@ -48,22 +69,27 @@ export const RPM_DROP_RATE = 4000;
 // ─── Launch window ────────────────────────────────────────────────────────────
 
 /** RPM range considered a perfect launch */
-export const LAUNCH_RPM_PERFECT_LOW = 4800;
-export const LAUNCH_RPM_PERFECT_HIGH = 5400;
+export const LAUNCH_RPM_PERFECT_LOW  = 4800;
+export const LAUNCH_RPM_PERFECT_HIGH = 5600; // widened slightly (was 5400)
 
 /** RPM range considered a good launch */
-export const LAUNCH_RPM_GOOD_LOW = 4200;
-export const LAUNCH_RPM_GOOD_HIGH = 6000;
+export const LAUNCH_RPM_GOOD_LOW  = 4000; // slightly wider (was 4200)
+export const LAUNCH_RPM_GOOD_HIGH = 6200; // slightly wider (was 6000)
 
 /** Below LAUNCH_RPM_GOOD_LOW → bog. Above LAUNCH_RPM_GOOD_HIGH → wheelspin. */
 
-/** Speed penalty multiplier for wheelspin (e.g. 0.7 = 30% slower acceleration) */
-export const WHEELSPIN_PENALTY = 0.55;
-export const WHEELSPIN_DURATION = 1.2; // seconds
+/**
+ * Wheelspin penalty: reduced from 0.55 → 0.65 so it's still punishing but
+ * the car isn't completely crippled. Ramps back to 1.0 smoothly over duration.
+ */
+export const WHEELSPIN_PENALTY  = 0.65;
+export const WHEELSPIN_DURATION = 0.8;  // seconds (was 1.2 – shorter, snappier)
 
-/** Acceleration multiplier for bog */
-export const BOG_PENALTY = 0.60;
-export const BOG_DURATION = 0.8; // seconds
+/**
+ * Bog penalty: reduced from 0.60 → 0.68. Ramps back to 1.0 smoothly.
+ */
+export const BOG_PENALTY  = 0.68;
+export const BOG_DURATION = 0.55; // seconds (was 0.8)
 
 // ─── Shifting ─────────────────────────────────────────────────────────────────
 
@@ -81,13 +107,16 @@ export const SHIFT_RPM_GOOD_WINDOW = 600;
 /** Speed loss fraction per shift grade */
 export const SHIFT_SPEED_LOSS: Record<string, number> = {
   PERFECT: 0.00,
-  GOOD: 0.03,
-  EARLY: 0.09,
-  LATE: 0.12,
+  GOOD:    0.02, // reduced from 0.03
+  EARLY:   0.07, // reduced from 0.09
+  LATE:    0.10, // reduced from 0.12
 };
 
-/** After upshift, RPM drops by this fraction of the post-shift gear ratio change */
-export const SHIFT_RPM_DROP_FACTOR = 0.68; // RPM_new = RPM_old * (newRatio/oldRatio) * factor
+/**
+ * After upshift, RPM drops by this fraction of the gear ratio change.
+ * Increased from 0.68 → 0.76 for smoother, less jarring gear changes.
+ */
+export const SHIFT_RPM_DROP_FACTOR = 0.76;
 
 // ─── Nitrous ─────────────────────────────────────────────────────────────────
 

@@ -6,7 +6,7 @@ import {
   LAUNCH_RPM_GOOD_LOW, LAUNCH_RPM_GOOD_HIGH,
   LAUNCH_RPM_PERFECT_LOW, LAUNCH_RPM_PERFECT_HIGH,
 } from "../constants";
-import { createCarTexture } from "../graphics/CarSprites";
+import { createCarTexture, CarType } from "../graphics/CarSprites";
 
 function gradeColour(grade: ShiftGrade | LaunchGrade): string {
   switch (grade) {
@@ -29,6 +29,7 @@ const CPU_LANE_Y    = 380;
 
 export class RaceScene extends Phaser.Scene {
   private sim!: RaceSimulation;
+  private carType: CarType = "silver";
 
   private keyThrottle!:    Phaser.Input.Keyboard.Key;
   private keyThrottleAlt!: Phaser.Input.Keyboard.Key;
@@ -69,7 +70,8 @@ export class RaceScene extends Phaser.Scene {
 
   constructor() { super({ key: "RaceScene" }); }
 
-  create(): void {
+  create(data?: { carType?: CarType }): void {
+    this.carType = data?.carType ?? "silver";
     this.sim = new RaceSimulation();
     this.shiftEdge = false;
     this.feedbackTimer = 0;
@@ -81,7 +83,7 @@ export class RaceScene extends Phaser.Scene {
     this.amberLights = [];
 
     const { width: W, height: H } = this.scale;
-    const playerKey = createCarTexture(this, "silver");
+    const playerKey = createCarTexture(this, this.carType);
     const cpuKey    = createCarTexture(this, "orange");
 
     this.buildBackground(W, H);
@@ -168,7 +170,7 @@ export class RaceScene extends Phaser.Scene {
     }
 
     if (this.sim.isFinished()) {
-      this.scene.start("ResultsScene", { result: this.sim.buildResult() });
+      this.scene.start("ResultsScene", { result: this.sim.buildResult(), carType: this.carType });
     }
   }
 

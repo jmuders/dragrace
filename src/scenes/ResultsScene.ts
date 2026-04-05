@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { RaceResult, ShiftGrade, LaunchGrade } from "../types";
+import { CarType } from "../graphics/CarSprites";
 
 function gradeColour(grade: ShiftGrade | LaunchGrade): string {
   switch (grade) {
@@ -28,8 +29,8 @@ export class ResultsScene extends Phaser.Scene {
     super({ key: "ResultsScene" });
   }
 
-  create(data: { result: RaceResult }): void {
-    const { result } = data;
+  create(data: { result: RaceResult; carType?: CarType }): void {
+    const { result, carType = "silver" } = data;
     const { width, height } = this.scale;
     const cx = width / 2;
 
@@ -134,7 +135,7 @@ export class ResultsScene extends Phaser.Scene {
 
     retryBg.on("pointerover", () => retryBg.setFillStyle(0xff6622));
     retryBg.on("pointerout",  () => retryBg.setFillStyle(0xff4400));
-    retryBg.on("pointerdown", () => this.scene.start("RaceScene"));
+    retryBg.on("pointerdown", () => this.scene.start("RaceScene", { carType }));
 
     // Menu
     const menuBg = this.add.rectangle(cx + 90, btnY, 160, 48, 0x224488)
@@ -145,11 +146,11 @@ export class ResultsScene extends Phaser.Scene {
 
     menuBg.on("pointerover", () => menuBg.setFillStyle(0x336699));
     menuBg.on("pointerout",  () => menuBg.setFillStyle(0x224488));
-    menuBg.on("pointerdown", () => this.scene.start("MenuScene"));
+    menuBg.on("pointerdown", () => this.scene.start("CarSelectionScene"));
 
     // Keyboard shortcuts
-    this.input.keyboard!.once("keydown-R", () => this.scene.start("RaceScene"));
-    this.input.keyboard!.once("keydown-ESC", () => this.scene.start("MenuScene"));
+    this.input.keyboard!.once("keydown-R",   () => this.scene.start("RaceScene", { carType }));
+    this.input.keyboard!.once("keydown-ESC", () => this.scene.start("CarSelectionScene"));
 
     // Hint
     this.add.text(cx, height - 20, "R = Retry   ESC = Menu", {

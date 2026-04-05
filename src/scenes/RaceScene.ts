@@ -113,6 +113,11 @@ export class RaceScene extends Phaser.Scene {
     const throttle = this.keyThrottle.isDown || this.keyThrottleAlt.isDown || this.touchThrottle;
     const nitro    = this.keyNitro.isDown || this.touchNitro;
 
+    // Pressing throttle during staging auto-starts the countdown sequence
+    if (this.sim.isStaging() && throttle) {
+      this.sim.startCountdown();
+    }
+
     const simShifted = this.sim.update({ throttle, shift: this.shiftEdge, nitro }, dt);
     this.shiftEdge = false;
 
@@ -303,16 +308,19 @@ export class RaceScene extends Phaser.Scene {
 
   private buildStartButton(W: number, H: number): void {
     this.startBtn = this.add.container(W * 0.5, H * 0.93);
-    const bg = this.add.rectangle(0, 0, 220, 42, 0x006600)
+    const bg = this.add.rectangle(0, 0, 260, 42, 0x006600)
       .setInteractive({ useHandCursor: true });
-    const txt = this.add.text(0, 0, "STAGE & START", {
-      fontSize: "18px", fontFamily: "monospace", color: "#ffffff",
+    const txt = this.add.text(0, -6, "HOLD THROTTLE TO START", {
+      fontSize: "14px", fontFamily: "monospace", color: "#ffffff",
+    }).setOrigin(0.5);
+    const sub = this.add.text(0, 10, "or click here / press ENTER", {
+      fontSize: "10px", fontFamily: "monospace", color: "#aaffaa",
     }).setOrigin(0.5);
     bg.on("pointerover",  () => bg.setFillStyle(0x009900));
     bg.on("pointerout",   () => bg.setFillStyle(0x006600));
     bg.on("pointerdown",  () => this.sim.startCountdown());
-    this.startBtn.add([bg, txt]);
-    this.input.keyboard!.once("keydown-ENTER", () => this.sim.startCountdown());
+    this.startBtn.add([bg, txt, sub]);
+    this.input.keyboard!.on("keydown-ENTER", () => this.sim.startCountdown());
   }
 
   private buildHUD(W: number, H: number): void {

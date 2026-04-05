@@ -24,8 +24,8 @@ function gradeColour(grade: ShiftGrade | LaunchGrade): string {
 const TRACK_START_X = 60;
 const TRACK_END_X   = 740;
 const TRACK_WIDTH   = TRACK_END_X - TRACK_START_X;
-const PLAYER_LANE_Y = 210;
-const CPU_LANE_Y    = 380;
+const PLAYER_LANE_Y = 155;
+const CPU_LANE_Y    = 275;
 
 export class RaceScene extends Phaser.Scene {
   private sim!: RaceSimulation;
@@ -197,7 +197,7 @@ export class RaceScene extends Phaser.Scene {
   }
 
   private buildTrack(W: number, H: number): void {
-    const trackH = 280;
+    const trackH = 200;
     this.add.rectangle(W / 2, H * 0.52, W, trackH, 0x1e1e1e);
 
     this.add.rectangle(W / 2, PLAYER_LANE_Y, W, 90, 0x222222);

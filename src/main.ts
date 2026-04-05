@@ -9,6 +9,7 @@ const config: Phaser.Types.Core.GameConfig = {
   width: 800,
   height: 450,
   backgroundColor: "#0a0a0a",
+  pixelArt: true,
   scene: [MenuScene, CarSelectionScene, RaceScene, ResultsScene],
   parent: document.body,
   scale: {

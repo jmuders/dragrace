@@ -593,7 +593,6 @@ export class RaceScene extends Phaser.Scene {
     const depth = 20;
 
     interface BtnHandle {
-      zone: Phaser.GameObjects.Zone;
       setPressed: (pressed: boolean) => void;
     }
 
@@ -626,9 +625,6 @@ export class RaceScene extends Phaser.Scene {
 
       draw(false);
 
-      // Invisible zone as hit target
-      const zone = this.add.zone(x, y, bw, bh).setDepth(depth + 2).setInteractive();
-
       // Icon above label
       if (icon) {
         this.add.text(x, y - (sublabel ? 22 : 14), icon, {
@@ -646,26 +642,80 @@ export class RaceScene extends Phaser.Scene {
         }).setOrigin(0.5).setDepth(depth + 1).setAlpha(0.7);
       }
 
-      return { zone, setPressed: draw };
+      return { setPressed: draw };
     };
 
     // Left thumb: big throttle button
     const throttle = makeBtn(80, h * 0.82, 155, h * 0.3, 0x3366ff, "▲", "THROTTLE", "HOLD");
-    throttle.zone.on("pointerdown", () => { this.touchThrottle = true;  throttle.setPressed(true); });
-    throttle.zone.on("pointerup",   () => { this.touchThrottle = false; throttle.setPressed(false); });
-    throttle.zone.on("pointerout",  () => { this.touchThrottle = false; throttle.setPressed(false); });
 
     // Right thumb: shift (top) + nitro (bottom)
     const shift = makeBtn(w - 80, h * 0.71, 155, h * 0.16, 0xffaa00, "◆", "SHIFT", "TAP");
-    shift.zone.on("pointerdown", () => {
-      this.touchShiftEdge = true;
-      shift.setPressed(true);
-      this.time.delayedCall(150, () => shift.setPressed(false));
-    });
-
     const nitro = makeBtn(w - 80, h * 0.89, 155, h * 0.16, 0x00ccff, "★", "NITRO", "HOLD");
-    nitro.zone.on("pointerdown", () => { this.touchNitro = true;  nitro.setPressed(true); });
-    nitro.zone.on("pointerup",   () => { this.touchNitro = false; nitro.setPressed(false); });
-    nitro.zone.on("pointerout",  () => { this.touchNitro = false; nitro.setPressed(false); });
+
+    // Button hit areas in game coordinates (center x/y, width, height)
+    const throttleArea = { cx: 80,      cy: h * 0.82, bw: 155, bh: h * 0.3  };
+    const shiftArea    = { cx: w - 80,  cy: h * 0.71, bw: 155, bh: h * 0.16 };
+    const nitroArea    = { cx: w - 80,  cy: h * 0.89, bw: 155, bh: h * 0.16 };
+
+    const hitTest = (gx: number, gy: number, a: typeof throttleArea) =>
+      gx >= a.cx - a.bw / 2 && gx <= a.cx + a.bw / 2 &&
+      gy >= a.cy - a.bh / 2 && gy <= a.cy + a.bh / 2;
+
+    // Convert a browser Touch to game-space coordinates accounting for canvas scaling
+    const canvas = this.sys.game.canvas;
+    const toGame = (touch: Touch): { x: number; y: number } => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (touch.clientX - rect.left) * (w / rect.width),
+        y: (touch.clientY - rect.top)  * (h / rect.height),
+      };
+    };
+
+    // Track active touch identifiers per hold-button so multi-touch works correctly
+    const throttleTouches = new Set<number>();
+    const nitroTouches    = new Set<number>();
+
+    const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      for (const t of Array.from(e.changedTouches)) {
+        const { x, y } = toGame(t);
+        if (hitTest(x, y, throttleArea)) {
+          throttleTouches.add(t.identifier);
+          this.touchThrottle = true;
+          throttle.setPressed(true);
+        }
+        if (hitTest(x, y, shiftArea)) {
+          this.touchShiftEdge = true;
+          shift.setPressed(true);
+          this.time.delayedCall(150, () => shift.setPressed(false));
+        }
+        if (hitTest(x, y, nitroArea)) {
+          nitroTouches.add(t.identifier);
+          this.touchNitro = true;
+          nitro.setPressed(true);
+        }
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      e.preventDefault();
+      for (const t of Array.from(e.changedTouches)) {
+        throttleTouches.delete(t.identifier);
+        nitroTouches.delete(t.identifier);
+      }
+      if (throttleTouches.size === 0) { this.touchThrottle = false; throttle.setPressed(false); }
+      if (nitroTouches.size === 0)    { this.touchNitro    = false; nitro.setPressed(false); }
+    };
+
+    canvas.addEventListener("touchstart",  onTouchStart, { passive: false });
+    canvas.addEventListener("touchend",    onTouchEnd,   { passive: false });
+    canvas.addEventListener("touchcancel", onTouchEnd,   { passive: false });
+
+    // Remove listeners when this scene shuts down to prevent leaks
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      canvas.removeEventListener("touchstart",  onTouchStart);
+      canvas.removeEventListener("touchend",    onTouchEnd);
+      canvas.removeEventListener("touchcancel", onTouchEnd);
+    });
   }
 }

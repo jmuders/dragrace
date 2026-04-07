@@ -295,9 +295,15 @@ const GREEN_SUPER: CarDef = {
 
 // ─── All car definitions ──────────────────────────────────────────────────────
 
-export type CarType = "silver" | "orange" | "red" | "green";
+export type CarType =
+  | "silver" | "orange" | "red" | "green"
+  | "blue_cobra" | "black_hyper" | "gray_roadster" | "dark_hyper"
+  | "red_f40" | "orange_supra" | "white_proto" | "red_roadster"
+  | "yellow_lotus" | "orange_mclaren" | "red_rx7" | "blue_viper"
+  | "lime_super" | "red_hyper" | "blue_gt40" | "blue_porsche"
+  | "yellow_muscle";
 
-const CAR_DEFS: Record<CarType, CarDef> = {
+const CAR_DEFS: Partial<Record<CarType, CarDef>> = {
   silver: SILVER_SEDAN,
   orange: ORANGE_SUPER,
   red:    RED_COUPE,
@@ -308,11 +314,18 @@ const CAR_DEFS: Record<CarType, CarDef> = {
 
 /**
  * Queue PNG sprites for loading. Call this in your scene's preload() method.
- * PNG files must be placed in public/assets/ with names car_silver.png, etc.
+ * PNG files must be placed in public/assets/ with names car_<type>.png.
  * If a PNG is missing the procedural fallback is used automatically.
  */
 export function preloadCarTextures(scene: Phaser.Scene): void {
-  const types: CarType[] = ["silver", "orange", "red", "green"];
+  const types: CarType[] = [
+    "silver", "orange", "red", "green",
+    "blue_cobra", "black_hyper", "gray_roadster", "dark_hyper",
+    "red_f40", "orange_supra", "white_proto", "red_roadster",
+    "yellow_lotus", "orange_mclaren", "red_rx7", "blue_viper",
+    "lime_super", "red_hyper", "blue_gt40", "blue_porsche",
+    "yellow_muscle",
+  ];
   for (const type of types) {
     const srcKey = `car_src_${type}`;
     if (!scene.textures.exists(srcKey)) {
@@ -393,7 +406,7 @@ export function createCarTexture(scene: Phaser.Scene, type: CarType): string {
   }
 
   // ── Procedural fallback ───────────────────────────────────────────────────
-  const def  = CAR_DEFS[type];
+  const def = CAR_DEFS[type] ?? CAR_DEFS["silver"]!;
   const texW = def.w * PX;
   const texH = def.h * PX;
 

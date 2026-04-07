@@ -8,21 +8,47 @@ interface CarOption {
 }
 
 const CARS: CarOption[] = [
-  { type: "silver", name: "SILVER SEDAN",  tagline: "Balanced & reliable" },
-  { type: "red",    name: "RED COUPE",     tagline: "High-revving powerhouse" },
-  { type: "green",  name: "GREEN SUPER",   tagline: "Aerodynamic specialist" },
+  { type: "silver",        name: "SILVER SEDAN",    tagline: "Balanced & reliable" },
+  { type: "red",           name: "RED COUPE",        tagline: "High-revving powerhouse" },
+  { type: "green",         name: "GREEN SUPER",      tagline: "Aerodynamic specialist" },
+  { type: "orange",        name: "ORANGE SUPER",     tagline: "Raw turbocharged power" },
+  { type: "blue_cobra",    name: "BLUE COBRA",       tagline: "Classic American roadster" },
+  { type: "black_hyper",   name: "BLACK HYPER",      tagline: "Bugatti-style top speed" },
+  { type: "gray_roadster", name: "GRAY ROADSTER",    tagline: "Open-air precision drive" },
+  { type: "dark_hyper",    name: "DARK HYPER",       tagline: "Koenigsegg-level fury" },
+  { type: "red_f40",       name: "RED F40",          tagline: "Legendary Ferrari icon" },
+  { type: "orange_supra",  name: "ORANGE SUPRA",     tagline: "JDM tuner's dream" },
+  { type: "white_proto",   name: "WHITE PROTO",      tagline: "Track-bred prototype" },
+  { type: "red_roadster",  name: "RED ROADSTER",     tagline: "Italian open-top style" },
+  { type: "yellow_lotus",  name: "YELLOW LOTUS",     tagline: "Lightweight corner king" },
+  { type: "orange_mclaren",name: "ORANGE McLAREN",   tagline: "F1-bred street machine" },
+  { type: "red_rx7",       name: "RED RX-7",         tagline: "Rotary-powered legend" },
+  { type: "blue_viper",    name: "BLUE VIPER",       tagline: "American muscle serpent" },
+  { type: "lime_super",    name: "LIME SUPER",       tagline: "Lamborghini attack mode" },
+  { type: "red_hyper",     name: "RED HYPER",        tagline: "LaFerrari hybrid beast" },
+  { type: "blue_gt40",     name: "BLUE GT40",        tagline: "Le Mans classic racer" },
+  { type: "blue_porsche",  name: "BLUE PORSCHE",     tagline: "Precision German sport" },
+  { type: "yellow_muscle", name: "YELLOW MUSCLE",    tagline: "Camaro V8 bruiser" },
 ];
 
-const SLOT_X = [160, 400, 640];
-const SLOT_Y = 200;
-const CARD_W = 210;
-const CARD_H = 110;
+const SLOT_X   = [160, 400, 640];
+const SLOT_Y   = 210;
+const CARD_W   = 210;
+const CARD_H   = 120;
+const VISIBLE  = 3; // cards shown at once
 
 export class CarSelectionScene extends Phaser.Scene {
   private selectedIndex = 0;
-  private cards: Phaser.GameObjects.Rectangle[] = [];
+  private viewOffset    = 0; // index of leftmost visible car
+
+  // Slot display objects (reused, textures swapped on scroll)
+  private slotCards:   Phaser.GameObjects.Rectangle[]  = [];
+  private slotImages:  Phaser.GameObjects.Image[]       = [];
+  private slotNumbers: Phaser.GameObjects.Text[]        = [];
+
   private nameText!:    Phaser.GameObjects.Text;
   private taglineText!: Phaser.GameObjects.Text;
+  private counterText!: Phaser.GameObjects.Text;
 
   constructor() { super({ key: "CarSelectionScene" }); }
 
@@ -50,31 +76,37 @@ export class CarSelectionScene extends Phaser.Scene {
       fontSize: "12px", fontFamily: "monospace", color: "#444444",
     }).setOrigin(0.5);
 
-    // ── Car cards ─────────────────────────────────────────────────────────
-    CARS.forEach((car, i) => {
-      const x = SLOT_X[i];
+    // ── Car slots ─────────────────────────────────────────────────────────
+    for (let slot = 0; slot < VISIBLE; slot++) {
+      const x = SLOT_X[slot];
 
       const card = this.add.rectangle(x, SLOT_Y, CARD_W, CARD_H, 0x111111)
         .setStrokeStyle(2, 0x2a2a2a)
         .setInteractive({ useHandCursor: true });
-      this.cards.push(card);
+      this.slotCards.push(card);
 
-      const key = createCarTexture(this, car.type);
-      const scale = getCarDisplayScale(this, key, 190);
-      this.add.image(x, SLOT_Y - 12, key).setScale(scale);
+      // Placeholder image — texture set in refreshSlots()
+      const img = this.add.image(x, SLOT_Y - 15, "__DEFAULT");
+      this.slotImages.push(img);
 
-      this.add.text(x, SLOT_Y + 50, `0${i + 1}`, {
+      const numText = this.add.text(x, SLOT_Y + 52, "", {
         fontSize: "11px", fontFamily: "monospace", color: "#333333",
       }).setOrigin(0.5);
+      this.slotNumbers.push(numText);
 
-      card.on("pointerdown", () => this.selectCar(i));
+      card.on("pointerdown", () => {
+        const carIdx = this.viewOffset + slot;
+        if (carIdx < CARS.length) this.selectCar(carIdx);
+      });
       card.on("pointerover", () => {
-        if (this.selectedIndex !== i) card.setFillStyle(0x181818);
+        const carIdx = this.viewOffset + slot;
+        if (this.selectedIndex !== carIdx) card.setFillStyle(0x181818);
       });
       card.on("pointerout", () => {
-        if (this.selectedIndex !== i) card.setFillStyle(0x111111);
+        const carIdx = this.viewOffset + slot;
+        if (this.selectedIndex !== carIdx) card.setFillStyle(0x111111);
       });
-    });
+    }
 
     // ── Nav arrows ────────────────────────────────────────────────────────
     const arrowLeft = this.add.text(SLOT_X[0] - 110, SLOT_Y, "◄", {
@@ -85,24 +117,29 @@ export class CarSelectionScene extends Phaser.Scene {
       fontSize: "28px", fontFamily: "monospace", color: "#ff4400",
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    arrowLeft.on("pointerdown", () =>
+    arrowLeft.on("pointerdown",  () =>
       this.selectCar((this.selectedIndex + CARS.length - 1) % CARS.length));
     arrowRight.on("pointerdown", () =>
       this.selectCar((this.selectedIndex + 1) % CARS.length));
 
     // ── Info panel ────────────────────────────────────────────────────────
-    this.add.rectangle(cx, 310, 500, 48, 0x111111).setStrokeStyle(1, 0x2a2a2a);
-    this.nameText = this.add.text(cx, 299, "", {
+    this.add.rectangle(cx, 330, 500, 48, 0x111111).setStrokeStyle(1, 0x2a2a2a);
+    this.nameText = this.add.text(cx, 319, "", {
       fontSize: "20px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
-    this.taglineText = this.add.text(cx, 322, "", {
+    this.taglineText = this.add.text(cx, 342, "", {
       fontSize: "13px", fontFamily: "monospace", color: "#777777",
     }).setOrigin(0.5);
 
+    // ── Car counter ───────────────────────────────────────────────────────
+    this.counterText = this.add.text(cx, 363, "", {
+      fontSize: "11px", fontFamily: "monospace", color: "#333333",
+    }).setOrigin(0.5);
+
     // ── Race button ───────────────────────────────────────────────────────
-    const btnBg = this.add.rectangle(cx, 382, 220, 46, 0xff4400)
+    const btnBg = this.add.rectangle(cx, 400, 220, 46, 0xff4400)
       .setInteractive({ useHandCursor: true });
-    const btnText = this.add.text(cx, 382, "RACE!", {
+    const btnText = this.add.text(cx, 400, "RACE!", {
       fontSize: "24px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
 
@@ -117,7 +154,7 @@ export class CarSelectionScene extends Phaser.Scene {
     });
 
     // ── Back link ─────────────────────────────────────────────────────────
-    const backText = this.add.text(cx, 428, "← BACK TO MENU", {
+    const backText = this.add.text(cx, 446, "← BACK TO MENU", {
       fontSize: "12px", fontFamily: "monospace", color: "#444444",
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     backText.on("pointerover", () => backText.setColor("#888888"));
@@ -136,19 +173,55 @@ export class CarSelectionScene extends Phaser.Scene {
     this.selectCar(0);
   }
 
-  private selectCar(index: number): void {
-    this.cards[this.selectedIndex]
-      .setFillStyle(0x111111)
-      .setStrokeStyle(2, 0x2a2a2a);
+  /** Update the 3 visible slots to match the current viewOffset. */
+  private refreshSlots(): void {
+    for (let slot = 0; slot < VISIBLE; slot++) {
+      const carIdx = this.viewOffset + slot;
+      const car    = CARS[carIdx];
 
+      if (!car) {
+        // Hide slot if out of range (shouldn't happen with wrap-around)
+        this.slotCards[slot].setVisible(false);
+        this.slotImages[slot].setVisible(false);
+        this.slotNumbers[slot].setVisible(false);
+        continue;
+      }
+
+      this.slotCards[slot].setVisible(true);
+      this.slotImages[slot].setVisible(true);
+      this.slotNumbers[slot].setVisible(true);
+
+      const key   = createCarTexture(this, car.type);
+      const scale = getCarDisplayScale(this, key, 190);
+      this.slotImages[slot].setTexture(key).setScale(scale);
+
+      this.slotNumbers[slot].setText(String(carIdx + 1).padStart(2, "0"));
+
+      // Highlight selected vs. unselected
+      if (carIdx === this.selectedIndex) {
+        this.slotCards[slot].setFillStyle(0x1a0800).setStrokeStyle(3, 0xff4400);
+      } else {
+        this.slotCards[slot].setFillStyle(0x111111).setStrokeStyle(2, 0x2a2a2a);
+      }
+    }
+  }
+
+  private selectCar(index: number): void {
     this.selectedIndex = index;
 
-    this.cards[index]
-      .setFillStyle(0x1a0800)
-      .setStrokeStyle(3, 0xff4400);
+    // Scroll view so selected car is always visible
+    if (index < this.viewOffset) {
+      this.viewOffset = index;
+    } else if (index >= this.viewOffset + VISIBLE) {
+      this.viewOffset = index - VISIBLE + 1;
+    }
 
-    this.nameText.setText(CARS[index].name);
-    this.taglineText.setText(CARS[index].tagline);
+    this.refreshSlots();
+
+    const car = CARS[index];
+    this.nameText.setText(car.name);
+    this.taglineText.setText(car.tagline);
+    this.counterText.setText(`${index + 1} / ${CARS.length}`);
   }
 
   private startRace(): void {

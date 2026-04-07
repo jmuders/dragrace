@@ -51,7 +51,8 @@ export class RaceScene extends Phaser.Scene {
   private laneMarkings: Phaser.GameObjects.Rectangle[] = [];
   private laneOffset = 0;
 
-  private speedLines: Phaser.GameObjects.Rectangle[] = [];
+  private speedLines:    Phaser.GameObjects.Rectangle[] = [];
+  private cpuSpeedLines: Phaser.GameObjects.Rectangle[] = [];
 
   private amberLights:    Phaser.GameObjects.Arc[] = [];
   private greenLight!:    Phaser.GameObjects.Arc;
@@ -91,7 +92,8 @@ export class RaceScene extends Phaser.Scene {
     this.bgClouds = [];
     this.bgTrees = [];
     this.laneMarkings = [];
-    this.speedLines = [];
+    this.speedLines    = [];
+    this.cpuSpeedLines = [];
     this.amberLights = [];
 
     const { width: W, height: H } = this.scale;
@@ -112,8 +114,8 @@ export class RaceScene extends Phaser.Scene {
     this.buildBackground(W, H);
     this.buildTrack(W, H);
     this.buildFinishLine(H);
+    this.buildSpeedLines(playerKey, cpuKey);
     this.buildCars(playerKey, cpuKey);
-    this.buildSpeedLines();
     this.buildCountdownTree(W, H);
     this.buildHUD(W, H);
     this.buildStartButton(W, H);
@@ -170,12 +172,25 @@ export class RaceScene extends Phaser.Scene {
 
     // Speed lines – visible whenever moving fast enough (not just when throttling)
     const showLines = state.phase === RacePhase.Racing && p.speed > 20;
+    const pRearX = this.playerSprite.x - this.playerSprite.displayWidth / 2;
     this.speedLines.forEach((r, i) => {
       r.setVisible(showLines);
       if (showLines) {
         const len = p.speed * 3 + (p.nitroActive ? 80 : 0);
         r.width = len;
-        r.x = this.playerSprite.x - len - 10 - (i % 3) * 20;
+        r.x = pRearX - (i % 3) * 15;
+        r.alpha = 0.25 + Math.random() * 0.2;
+      }
+    });
+
+    const showCpuLines = state.phase === RacePhase.Racing && c.speed > 20;
+    const cRearX = this.cpuSprite.x - this.cpuSprite.displayWidth / 2;
+    this.cpuSpeedLines.forEach((r, i) => {
+      r.setVisible(showCpuLines);
+      if (showCpuLines) {
+        const len = c.speed * 3 + (c.nitroActive ? 80 : 0);
+        r.width = len;
+        r.x = cRearX - (i % 3) * 15;
         r.alpha = 0.25 + Math.random() * 0.2;
       }
     });
@@ -317,10 +332,31 @@ export class RaceScene extends Phaser.Scene {
       .setOrigin(0.5, 0.7).setScale(getCarDisplayScale(this, cpuKey, 288));
   }
 
-  private buildSpeedLines(): void {
-    for (const dy of [-22, -10, 2, 14, -28, 20]) {
+  private buildSpeedLines(playerKey: string, cpuKey: string): void {
+    // Fractions of sprite height from the top where each speed-line sits.
+    // Range 0.08–0.65 covers the car body (roof → lower door panel), above the wheels.
+    const fractions = [0.08, 0.18, 0.28, 0.40, 0.52, 0.63];
+    const originY = 0.7; // must match setOrigin used in buildCars
+
+    const computeDispH = (key: string): number => {
+      const tex = this.textures.get(key);
+      const texH = tex.source[0].height;
+      const scale = getCarDisplayScale(this, key, 288);
+      return texH * scale;
+    };
+
+    const pDispH = computeDispH(playerKey);
+    const cDispH = computeDispH(cpuKey);
+
+    for (const frac of fractions) {
+      const pDy = (frac - originY) * pDispH;
+      const cDy = (frac - originY) * cDispH;
       this.speedLines.push(
-        this.add.rectangle(0, PLAYER_LANE_Y + dy, 60, 2, 0xffffff, 0.35)
+        this.add.rectangle(0, PLAYER_LANE_Y + pDy, 60, 2, 0xffffff, 0.35)
+          .setOrigin(1, 0.5).setVisible(false),
+      );
+      this.cpuSpeedLines.push(
+        this.add.rectangle(0, CPU_LANE_Y + cDy, 60, 2, 0xff8844, 0.35)
           .setOrigin(1, 0.5).setVisible(false),
       );
     }

@@ -73,6 +73,7 @@ export class RaceScene extends Phaser.Scene {
   private rpmGaugeX!: number;
 
   private finishLineGfx!: Phaser.GameObjects.Graphics;
+  private treeHideTriggered = false;
 
   constructor() { super({ key: "RaceScene" }); }
 
@@ -86,6 +87,7 @@ export class RaceScene extends Phaser.Scene {
     this.shiftEdge = false;
     this.feedbackTimer = 0;
     this.laneOffset = 0;
+    this.treeHideTriggered = false;
     this.bgClouds = [];
     this.bgTrees = [];
     this.laneMarkings = [];
@@ -190,6 +192,17 @@ export class RaceScene extends Phaser.Scene {
     }
 
     this.updateTree(state.countdown.ambersLit, state.countdown.greenLit, state.phase);
+
+    if (state.phase === RacePhase.Racing && state.elapsed >= 2.5 && !this.treeHideTriggered) {
+      this.treeHideTriggered = true;
+      this.tweens.add({
+        targets: this.treeContainer,
+        alpha: { from: 1, to: 0 },
+        duration: 600,
+        ease: "Linear",
+      });
+    }
+
     this.updateHUD(state, p);
 
     if (simShifted && this.sim.lastShiftEvent) {

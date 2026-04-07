@@ -29,8 +29,8 @@ export class ResultsScene extends Phaser.Scene {
     super({ key: "ResultsScene" });
   }
 
-  create(data: { result: RaceResult; carType?: CarType }): void {
-    const { result, carType = "silver" } = data;
+  create(data: { result: RaceResult; carType?: CarType; opponentCarType?: CarType }): void {
+    const { result, carType = "silver", opponentCarType } = data;
     const { width, height } = this.scale;
     const cx = width / 2;
 
@@ -135,7 +135,7 @@ export class ResultsScene extends Phaser.Scene {
 
     retryBg.on("pointerover", () => retryBg.setFillStyle(0xff6622));
     retryBg.on("pointerout",  () => retryBg.setFillStyle(0xff4400));
-    retryBg.on("pointerdown", () => this.scene.start("RaceScene", { carType }));
+    retryBg.on("pointerdown", () => this.scene.start("RaceScene", { carType, opponentCarType }));
 
     // Menu
     const menuBg = this.add.rectangle(cx + 90, btnY, 155, 42, 0x224488)
@@ -149,7 +149,7 @@ export class ResultsScene extends Phaser.Scene {
     menuBg.on("pointerdown", () => this.scene.start("CarSelectionScene"));
 
     // Keyboard shortcuts
-    this.input.keyboard!.once("keydown-R",   () => this.scene.start("RaceScene", { carType }));
+    this.input.keyboard!.once("keydown-R",   () => this.scene.start("RaceScene", { carType, opponentCarType }));
     this.input.keyboard!.once("keydown-ESC", () => this.scene.start("CarSelectionScene"));
 
     // Hint

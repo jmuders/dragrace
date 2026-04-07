@@ -434,13 +434,13 @@ export class RaceScene extends Phaser.Scene {
   private buildHUD(W: number, H: number): void {
     const HUD_H = 110;
     this.gaugeY  = H - 60;
+    const SPD_ARC_R = 50;
+    const SPD_ARC_W = 13;
     // Shift button left edge = W - 80 - 155/2 = W - 157.5; place tachometer just left of it
-    const TACH_BEZEL_R = RaceScene.ARC_R + 7; // 45px
+    const TACH_BEZEL_R = SPD_ARC_R + 7; // 57px – same size as speedometer
     const gRpmX  = W - 157.5 - 8 - TACH_BEZEL_R;
     this.rpmGaugeX = gRpmX;
     // Throttle button right edge ≈ 80 + 155/2 = 157.5; place speedometer right next to it
-    const SPD_ARC_R = 50;
-    const SPD_ARC_W = 13;
     this.spdGaugeX   = 157 + 10 + SPD_ARC_R + 7; // gap + bezel radius
     const gSpdX      = this.spdGaugeX;
     const centX  = W / 2;
@@ -455,7 +455,7 @@ export class RaceScene extends Phaser.Scene {
     this.buildGaugeFace(gRpmX, this.gaugeY, 8, [
       { low: LAUNCH_RPM_GOOD_LOW    / MAX_RPM, high: LAUNCH_RPM_GOOD_HIGH    / MAX_RPM, color: 0x448800, alpha: 0.5 },
       { low: LAUNCH_RPM_PERFECT_LOW / MAX_RPM, high: LAUNCH_RPM_PERFECT_HIGH / MAX_RPM, color: 0x00dd44, alpha: 0.7 },
-    ]);
+    ], SPD_ARC_R, SPD_ARC_W);
     this.rpmGauge = this.add.graphics();
 
     // Gauge label
@@ -465,10 +465,10 @@ export class RaceScene extends Phaser.Scene {
 
     // Value text inside gauge
     this.rpmValText = this.add.text(gRpmX, this.gaugeY - 4, "0", {
-      fontSize: "11px", fontFamily: "monospace", color: "#ff8844", fontStyle: "bold",
+      fontSize: "15px", fontFamily: "monospace", color: "#ff8844", fontStyle: "bold",
     }).setOrigin(0.5, 0.5);
-    this.add.text(gRpmX, this.gaugeY + 9, "RPM", {
-      fontSize: "7px", fontFamily: "monospace", color: "#555555",
+    this.add.text(gRpmX, this.gaugeY + 12, "RPM", {
+      fontSize: "10px", fontFamily: "monospace", color: "#555555",
     }).setOrigin(0.5, 0.5);
 
     // ── Right gauge: speed ────────────────────────────────────────────────
@@ -480,10 +480,10 @@ export class RaceScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5);
 
     this.speedText = this.add.text(gSpdX, this.gaugeY - 4, "0", {
-      fontSize: "11px", fontFamily: "monospace", color: "#44ccff", fontStyle: "bold",
+      fontSize: "15px", fontFamily: "monospace", color: "#44ccff", fontStyle: "bold",
     }).setOrigin(0.5, 0.5);
-    this.add.text(gSpdX, this.gaugeY + 9, "MPH", {
-      fontSize: "7px", fontFamily: "monospace", color: "#555555",
+    this.add.text(gSpdX, this.gaugeY + 12, "MPH", {
+      fontSize: "10px", fontFamily: "monospace", color: "#555555",
     }).setOrigin(0.5, 0.5);
 
     // ── Centre: gear + timer + nitro ──────────────────────────────────────
@@ -537,7 +537,7 @@ export class RaceScene extends Phaser.Scene {
       : p.rpm >= LAUNCH_RPM_GOOD_LOW ? 0xaadd00
       : 0xff6600;
 
-    this.drawGaugeFill(this.rpmGauge, this.rpmGaugeX, this.gaugeY, p.rpm, MAX_RPM, rpmColor);
+    this.drawGaugeFill(this.rpmGauge, this.rpmGaugeX, this.gaugeY, p.rpm, MAX_RPM, rpmColor, 50, 13);
     this.rpmValText.setText(`${Math.round(p.rpm)}`).setColor(
       atLimiter ? "#ff2200"
         : inShiftZone ? "#00ffcc"

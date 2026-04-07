@@ -95,15 +95,15 @@ export class CarSelectionScene extends Phaser.Scene {
       this.slotNumbers.push(numText);
 
       card.on("pointerdown", () => {
-        const carIdx = this.viewOffset + slot;
-        if (carIdx < CARS.length) this.selectCar(carIdx);
+        const carIdx = (this.viewOffset + slot) % CARS.length;
+        this.selectCar(carIdx);
       });
       card.on("pointerover", () => {
-        const carIdx = this.viewOffset + slot;
+        const carIdx = (this.viewOffset + slot) % CARS.length;
         if (this.selectedIndex !== carIdx) card.setFillStyle(0x181818);
       });
       card.on("pointerout", () => {
-        const carIdx = this.viewOffset + slot;
+        const carIdx = (this.viewOffset + slot) % CARS.length;
         if (this.selectedIndex !== carIdx) card.setFillStyle(0x111111);
       });
     }
@@ -176,16 +176,8 @@ export class CarSelectionScene extends Phaser.Scene {
   /** Update the 3 visible slots to match the current viewOffset. */
   private refreshSlots(): void {
     for (let slot = 0; slot < VISIBLE; slot++) {
-      const carIdx = this.viewOffset + slot;
+      const carIdx = (this.viewOffset + slot) % CARS.length;
       const car    = CARS[carIdx];
-
-      if (!car) {
-        // Hide slot if out of range (shouldn't happen with wrap-around)
-        this.slotCards[slot].setVisible(false);
-        this.slotImages[slot].setVisible(false);
-        this.slotNumbers[slot].setVisible(false);
-        continue;
-      }
 
       this.slotCards[slot].setVisible(true);
       this.slotImages[slot].setVisible(true);
@@ -209,12 +201,8 @@ export class CarSelectionScene extends Phaser.Scene {
   private selectCar(index: number): void {
     this.selectedIndex = index;
 
-    // Scroll view so selected car is always visible
-    if (index < this.viewOffset) {
-      this.viewOffset = index;
-    } else if (index >= this.viewOffset + VISIBLE) {
-      this.viewOffset = index - VISIBLE + 1;
-    }
+    // Keep selected car in the center slot, with wrap-around
+    this.viewOffset = (index - 1 + CARS.length) % CARS.length;
 
     this.refreshSlots();
 

@@ -93,7 +93,17 @@ export class RaceScene extends Phaser.Scene {
 
     const { width: W, height: H } = this.scale;
     const playerKey = createCarTexture(this, this.carType);
-    const cpuKey    = createCarTexture(this, "orange");
+    const allCarTypes: CarType[] = [
+      "silver", "orange", "red", "green",
+      "blue_cobra", "black_hyper", "gray_roadster", "dark_hyper",
+      "red_f40", "orange_supra", "white_proto", "red_roadster",
+      "yellow_lotus", "orange_mclaren", "red_rx7", "blue_viper",
+      "lime_super", "red_hyper", "blue_gt40", "blue_porsche",
+      "yellow_muscle",
+    ];
+    const opponentChoices = allCarTypes.filter(t => t !== this.carType);
+    const cpuCarType = opponentChoices[Math.floor(Math.random() * opponentChoices.length)];
+    const cpuKey    = createCarTexture(this, cpuCarType);
 
     this.buildBackground(W, H);
     this.buildTrack(W, H);

@@ -132,10 +132,10 @@ export const NITRO_RPM_BOOST = 800; // RPM/s added to climb rate
 // ─── AI opponent ──────────────────────────────────────────────────────────────
 
 /** AI simulates a target ET (elapsed time in seconds for the quarter mile) */
-export const AI_TARGET_ET = 11.4; // seconds – gives player a fair challenge
+export const AI_TARGET_ET = 12.5; // seconds – gives player a realistic chance with good execution
 
 /** Small random variance added each race so AI isn't perfectly consistent */
-export const AI_ET_VARIANCE = 0.3;
+export const AI_ET_VARIANCE = 0.5;
 
 // ─── Countdown ────────────────────────────────────────────────────────────────
 

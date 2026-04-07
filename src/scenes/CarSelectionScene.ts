@@ -57,6 +57,10 @@ export class CarSelectionScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.slotCards   = [];
+    this.slotImages  = [];
+    this.slotNumbers = [];
+
     const { width: W, height: H } = this.scale;
     const cx = W / 2;
 

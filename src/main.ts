@@ -11,13 +11,13 @@ const config: Phaser.Types.Core.GameConfig = {
   backgroundColor: "#0a0a0a",
   pixelArt: true,
   scene: [MenuScene, CarSelectionScene, RaceScene, ResultsScene],
-  parent: document.body,
+  parent: 'game-container',
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: 800,
     height: 450,
-    expandParent: true,
+    expandParent: false,
   },
   input: {
     activePointers: 3, // support throttle + shift + nitro simultaneously

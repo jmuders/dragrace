@@ -31,6 +31,7 @@ const CPU_LANE_Y    = 275;
 export class RaceScene extends Phaser.Scene {
   private sim!: RaceSimulation;
   private carType: CarType = "silver";
+  private opponentCarType: CarType = "orange";
 
   private keyThrottle!:    Phaser.Input.Keyboard.Key;
   private keyThrottleAlt!: Phaser.Input.Keyboard.Key;
@@ -79,7 +80,7 @@ export class RaceScene extends Phaser.Scene {
     preloadCarTextures(this);
   }
 
-  create(data?: { carType?: CarType }): void {
+  create(data?: { carType?: CarType; opponentCarType?: CarType }): void {
     this.carType = data?.carType ?? "silver";
     this.sim = new RaceSimulation();
     this.shiftEdge = false;
@@ -102,7 +103,8 @@ export class RaceScene extends Phaser.Scene {
       "yellow_muscle",
     ];
     const opponentChoices = allCarTypes.filter(t => t !== this.carType);
-    const cpuCarType = opponentChoices[Math.floor(Math.random() * opponentChoices.length)];
+    const cpuCarType = data?.opponentCarType ?? opponentChoices[Math.floor(Math.random() * opponentChoices.length)];
+    this.opponentCarType = cpuCarType;
     const cpuKey    = createCarTexture(this, cpuCarType);
 
     this.buildBackground(W, H);
@@ -200,7 +202,7 @@ export class RaceScene extends Phaser.Scene {
     }
 
     if (this.sim.isFinished()) {
-      this.scene.start("ResultsScene", { result: this.sim.buildResult(), carType: this.carType });
+      this.scene.start("ResultsScene", { result: this.sim.buildResult(), carType: this.carType, opponentCarType: this.opponentCarType });
     }
   }
 

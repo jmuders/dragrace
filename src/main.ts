@@ -19,6 +19,9 @@ const config: Phaser.Types.Core.GameConfig = {
     height: 450,
     expandParent: true,
   },
+  input: {
+    activePointers: 3, // support throttle + shift + nitro simultaneously
+  },
   audio: {
     noAudio: true, // no audio assets – keep it clean
   },

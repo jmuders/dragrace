@@ -5,7 +5,7 @@ import {
   QUARTER_MILE_METERS, MAX_RPM, NITRO_DURATION,
   LAUNCH_RPM_GOOD_LOW, LAUNCH_RPM_GOOD_HIGH,
   LAUNCH_RPM_PERFECT_LOW, LAUNCH_RPM_PERFECT_HIGH,
-  SHIFT_RPM_IDEAL, SHIFT_RPM_PERFECT_WINDOW, REV_LIMITER_WINDOW,
+  SHIFT_RPM_IDEAL, SHIFT_RPM_PERFECT_WINDOW, SHIFT_RPM_GOOD_WINDOW, REV_LIMITER_WINDOW,
 } from "../constants";
 import { createCarTexture, preloadCarTextures, getCarDisplayScale, CarType } from "../graphics/CarSprites";
 
@@ -513,9 +513,14 @@ export class RaceScene extends Phaser.Scene {
     this.add.rectangle(0, H - HUD_H + 2, W, 1, 0x1a1a1a).setOrigin(0, 0);
 
     // ── Right side gauge: RPM tachometer (just left of shift/nitro buttons) ─
+    // Static zones: green = launch target, cyan/amber = shift target
     this.buildGaugeFace(gRpmX, this.gaugeY, 8, [
-      { low: LAUNCH_RPM_GOOD_LOW    / MAX_RPM, high: LAUNCH_RPM_GOOD_HIGH    / MAX_RPM, color: 0x448800, alpha: 0.5 },
-      { low: LAUNCH_RPM_PERFECT_LOW / MAX_RPM, high: LAUNCH_RPM_PERFECT_HIGH / MAX_RPM, color: 0x00dd44, alpha: 0.7 },
+      // Launch zones (lower arc, ~47–73% of sweep)
+      { low: LAUNCH_RPM_GOOD_LOW    / MAX_RPM, high: LAUNCH_RPM_GOOD_HIGH    / MAX_RPM, color: 0x448800, alpha: 0.45 },
+      { low: LAUNCH_RPM_PERFECT_LOW / MAX_RPM, high: LAUNCH_RPM_PERFECT_HIGH / MAX_RPM, color: 0x00cc44, alpha: 0.65 },
+      // Shift zones (upper arc, ~78–92% of sweep)
+      { low: (SHIFT_RPM_IDEAL - SHIFT_RPM_GOOD_WINDOW)    / MAX_RPM, high: (SHIFT_RPM_IDEAL + SHIFT_RPM_GOOD_WINDOW)    / MAX_RPM, color: 0xffaa00, alpha: 0.30 },
+      { low: (SHIFT_RPM_IDEAL - SHIFT_RPM_PERFECT_WINDOW) / MAX_RPM, high: (SHIFT_RPM_IDEAL + SHIFT_RPM_PERFECT_WINDOW) / MAX_RPM, color: 0x00ffcc, alpha: 0.55 },
     ], SPD_ARC_R, SPD_ARC_W);
     this.rpmGauge = this.add.graphics();
 
@@ -584,37 +589,65 @@ export class RaceScene extends Phaser.Scene {
   }
 
   private updateHUD(state: ReturnType<RaceSimulation["getState"]>, p: typeof state.player): void {
-    const inShiftZone = state.phase === RacePhase.Racing && p.gear < 4
-      && Math.abs(p.rpm - SHIFT_RPM_IDEAL) <= SHIFT_RPM_PERFECT_WINDOW * 2;
-    const atLimiter = p.revLimiterActive;
+    const isRacing   = state.phase === RacePhase.Racing;
+    const canShift   = p.gear < 4;
+    const atLimiter  = p.revLimiterActive;
 
-    // RPM gauge colour hierarchy: limiter flash > shift zone > launch window zones
-    const rpmColor = atLimiter
-      ? (Math.floor(Date.now() / 80) % 2 === 0 ? 0xff0000 : 0xff6600) // alternating flash
-      : inShiftZone ? 0x00ffcc
-      : p.rpm > MAX_RPM - REV_LIMITER_WINDOW * 2 ? 0xff3300
-      : p.rpm > LAUNCH_RPM_GOOD_HIGH ? 0xff6600
-      : p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH ? 0x00dd44
-      : p.rpm >= LAUNCH_RPM_GOOD_LOW ? 0xaadd00
-      : 0xff6600;
+    // Shift zone flags (only relevant during racing with shifts remaining)
+    const shiftDelta        = Math.abs(p.rpm - SHIFT_RPM_IDEAL);
+    const inPerfectShift    = isRacing && canShift && shiftDelta <= SHIFT_RPM_PERFECT_WINDOW;
+    const inGoodShift       = isRacing && canShift && shiftDelta <= SHIFT_RPM_GOOD_WINDOW;
+    const pastGoodShift     = isRacing && canShift && p.rpm > SHIFT_RPM_IDEAL + SHIFT_RPM_GOOD_WINDOW;
+
+    // RPM gauge colour:
+    //   Pre-launch  → launch zone colours (green = perfect, yellow-green = good, blue = too low, orange = too high)
+    //   Racing      → shift zone colours  (cyan = perfect, yellow = good approach, orange/red = late/limiter)
+    let rpmColor: number;
+    if (atLimiter) {
+      rpmColor = Math.floor(Date.now() / 80) % 2 === 0 ? 0xff0000 : 0xff6600;
+    } else if (isRacing) {
+      if (inPerfectShift) {
+        rpmColor = 0x00ffcc;                                          // cyan  – SHIFT NOW
+      } else if (inGoodShift) {
+        rpmColor = p.rpm < SHIFT_RPM_IDEAL ? 0xffdd00 : 0xff9900;    // yellow approaching / amber past
+      } else if (pastGoodShift) {
+        rpmColor = 0xff3300;                                          // red-orange – late shift
+      } else if (!canShift) {
+        // Gear 4: colour builds from teal → orange as RPM rises toward limiter
+        rpmColor = p.rpm > MAX_RPM - REV_LIMITER_WINDOW * 3 ? 0xff6600
+          : p.rpm > 6000 ? 0x44ddaa
+          : 0x44aaff;
+      } else if (p.rpm > SHIFT_RPM_IDEAL - SHIFT_RPM_GOOD_WINDOW - 600) {
+        rpmColor = 0xffaa00;                                          // amber – approaching good zone
+      } else {
+        rpmColor = 0x44aaff;                                          // blue – building RPM
+      }
+    } else {
+      // Pre-launch: show launch window zones
+      if (p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH) {
+        rpmColor = 0x00dd44;                                          // bright green – perfect launch
+      } else if (p.rpm >= LAUNCH_RPM_GOOD_LOW && p.rpm <= LAUNCH_RPM_GOOD_HIGH) {
+        rpmColor = 0xaadd00;                                          // yellow-green – good launch
+      } else if (p.rpm > LAUNCH_RPM_GOOD_HIGH) {
+        rpmColor = 0xff6600;                                          // orange – wheelspin risk
+      } else {
+        rpmColor = 0x4488ff;                                          // blue – too low (bog risk)
+      }
+    }
 
     this.drawGaugeFill(this.rpmGauge, this.rpmGaugeX, this.gaugeY, p.rpm, MAX_RPM, rpmColor, 50, 13);
-    this.rpmValText.setText(`${Math.round(p.rpm)}`).setColor(
-      atLimiter ? "#ff2200"
-        : inShiftZone ? "#00ffcc"
-        : p.rpm > MAX_RPM - REV_LIMITER_WINDOW * 2 ? "#ff4422"
-        : p.rpm >= LAUNCH_RPM_PERFECT_LOW && p.rpm <= LAUNCH_RPM_PERFECT_HIGH ? "#44ee88"
-        : "#ff8844"
-    );
+    // Text colour matches the gauge colour for consistency
+    const rpmHex = `#${rpmColor.toString(16).padStart(6, "0")}`;
+    this.rpmValText.setText(`${Math.round(p.rpm)}`).setColor(rpmHex);
 
     const mph = Math.round(p.speed * 2.237);
     const spdColor = mph > 150 ? 0xffffff : mph > 80 ? 0x44ddff : 0x0088cc;
     this.drawGaugeFill(this.speedGauge, this.spdGaugeX, this.gaugeY, mph, RaceScene.MAX_MPH, spdColor, 50, 13);
     this.speedText.setText(`${mph}`).setColor(mph > 150 ? "#ffffff" : "#44ccff");
 
-    // Gear text highlights cyan when in the ideal shift zone
+    // Gear text: cyan in perfect zone, yellow in good zone, red at limiter
     this.gearText.setText(`GEAR  ${p.gear}`)
-      .setColor(inShiftZone ? "#00ffcc" : atLimiter ? "#ff4422" : "#aaaaaa");
+      .setColor(inPerfectShift ? "#00ffcc" : inGoodShift ? "#ffdd00" : atLimiter ? "#ff4422" : "#aaaaaa");
 
     if (state.phase === RacePhase.Racing) {
       this.timerText.setText(state.elapsed.toFixed(3));

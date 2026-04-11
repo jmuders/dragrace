@@ -82,9 +82,9 @@ export class RaceScene extends Phaser.Scene {
     preloadCarTextures(this);
   }
 
-  create(data?: { carType?: CarType; opponentCarType?: CarType }): void {
+  create(data?: { carType?: CarType; opponentCarType?: CarType; difficulty?: string }): void {
     this.carType = data?.carType ?? "silver";
-    this.sim = new RaceSimulation();
+    this.sim = new RaceSimulation(data?.difficulty);
     this.shiftEdge = false;
     this.feedbackTimer = 0;
     this.laneOffset = 0;

@@ -1,4 +1,4 @@
-import { AI_TARGET_ET, AI_ET_VARIANCE, QUARTER_MILE_METERS } from "../constants";
+import { QUARTER_MILE_METERS, DIFFICULTIES, DEFAULT_DIFFICULTY_INDEX } from "../constants";
 import { CarState } from "../types";
 
 /**
@@ -16,10 +16,12 @@ export class AIOpponent {
   private readonly targetET: number;
   private elapsed = 0;
 
-  constructor() {
+  constructor(difficultyKey?: string) {
+    const cfg = DIFFICULTIES.find(d => d.key === difficultyKey)
+      ?? DIFFICULTIES[DEFAULT_DIFFICULTY_INDEX];
     // Randomise ET slightly each race so the AI isn't a metronome
-    const variance = (Math.random() * 2 - 1) * AI_ET_VARIANCE;
-    this.targetET = AI_TARGET_ET + variance;
+    const variance = (Math.random() * 2 - 1) * cfg.variance;
+    this.targetET = cfg.targetET + variance;
   }
 
   /** Call every frame while race is active */

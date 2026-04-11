@@ -1,5 +1,12 @@
 // ─── Core enums ───────────────────────────────────────────────────────────────
 
+export const enum Difficulty {
+  Rookie = "ROOKIE",
+  Street = "STREET",
+  Pro    = "PRO",
+  Elite  = "ELITE",
+}
+
 export const enum RacePhase {
   Staging = "staging",    // pre-countdown, engines revving
   Countdown = "countdown",

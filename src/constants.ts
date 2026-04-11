@@ -131,11 +131,46 @@ export const NITRO_RPM_BOOST = 800; // RPM/s added to climb rate
 
 // ─── AI opponent ──────────────────────────────────────────────────────────────
 
-/** AI simulates a target ET (elapsed time in seconds for the quarter mile) */
-export const AI_TARGET_ET = 12.5; // seconds – gives player a realistic chance with good execution
+/** Difficulty configuration for the AI opponent */
+export interface DifficultyConfig {
+  key:         string;
+  label:       string;
+  description: string;
+  color:       number;   // Phaser hex colour (0xRRGGBB)
+  colorStr:    string;   // CSS hex colour for text tints
+  targetET:    number;   // AI quarter-mile elapsed time in seconds
+  variance:    number;   // ±random wobble applied each race
+}
 
-/** Small random variance added each race so AI isn't perfectly consistent */
-export const AI_ET_VARIANCE = 0.5;
+export const DIFFICULTIES: DifficultyConfig[] = [
+  {
+    key: "ROOKIE",  label: "ROOKIE",
+    description: "Slow opponent — good for learning the ropes",
+    color: 0x00cc44, colorStr: "#00cc44",
+    targetET: 15.5,  variance: 1.0,
+  },
+  {
+    key: "STREET",  label: "STREET",
+    description: "Average street racer — solid execution needed",
+    color: 0xffcc00, colorStr: "#ffcc00",
+    targetET: 12.5,  variance: 0.5,
+  },
+  {
+    key: "PRO",     label: "PRO",
+    description: "Seasoned competitor — near-perfect runs required",
+    color: 0xff8800, colorStr: "#ff8800",
+    targetET: 10.5,  variance: 0.3,
+  },
+  {
+    key: "ELITE",   label: "ELITE",
+    description: "Machine precision — only perfection wins",
+    color: 0xff2200, colorStr: "#ff2200",
+    targetET: 9.0,   variance: 0.15,
+  },
+];
+
+/** Default difficulty index (STREET) */
+export const DEFAULT_DIFFICULTY_INDEX = 1;
 
 // ─── Countdown ────────────────────────────────────────────────────────────────
 

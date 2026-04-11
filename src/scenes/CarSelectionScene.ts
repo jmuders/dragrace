@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { createCarTexture, preloadCarTextures, getCarDisplayScale, CarType } from "../graphics/CarSprites";
+import { DIFFICULTIES, DEFAULT_DIFFICULTY_INDEX } from "../constants";
 
 interface CarOption {
   type: CarType;
@@ -32,23 +33,36 @@ const CARS: CarOption[] = [
 ];
 
 const SLOT_X   = [160, 400, 640];
-const SLOT_Y   = 210;
+const SLOT_Y   = 200;
 const CARD_W   = 210;
-const CARD_H   = 120;
+const CARD_H   = 118;
 const VISIBLE  = 3; // cards shown at once
+
+// Difficulty button layout (4 buttons, centred in 800 px canvas)
+const DIFF_BTN_W  = 154;
+const DIFF_BTN_H  = 26;
+const DIFF_BTN_GAP = 10;
+const DIFF_TOTAL_W = 4 * DIFF_BTN_W + 3 * DIFF_BTN_GAP; // 646
+const DIFF_START_X = (800 - DIFF_TOTAL_W) / 2;            // 77
+const DIFF_BTN_Y   = 378;
 
 export class CarSelectionScene extends Phaser.Scene {
   private selectedIndex = 0;
-  private viewOffset    = 0; // index of leftmost visible car
+  private viewOffset    = 0;
+
+  private selectedDifficultyIndex = DEFAULT_DIFFICULTY_INDEX;
 
   // Slot display objects (reused, textures swapped on scroll)
   private slotCards:   Phaser.GameObjects.Rectangle[]  = [];
   private slotImages:  Phaser.GameObjects.Image[]       = [];
   private slotNumbers: Phaser.GameObjects.Text[]        = [];
 
-  private nameText!:    Phaser.GameObjects.Text;
-  private taglineText!: Phaser.GameObjects.Text;
-  private counterText!: Phaser.GameObjects.Text;
+  private nameText!:        Phaser.GameObjects.Text;
+  private taglineText!:     Phaser.GameObjects.Text;
+  private counterText!:     Phaser.GameObjects.Text;
+  private diffDescText!:    Phaser.GameObjects.Text;
+  private diffBtnBgs:       Phaser.GameObjects.Rectangle[] = [];
+  private diffBtnLabels:    Phaser.GameObjects.Text[]      = [];
 
   constructor() { super({ key: "CarSelectionScene" }); }
 
@@ -57,9 +71,12 @@ export class CarSelectionScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.slotCards   = [];
-    this.slotImages  = [];
-    this.slotNumbers = [];
+    this.slotCards        = [];
+    this.slotImages       = [];
+    this.slotNumbers      = [];
+    this.diffBtnBgs       = [];
+    this.diffBtnLabels    = [];
+    this.selectedDifficultyIndex = DEFAULT_DIFFICULTY_INDEX;
 
     const { width: W, height: H } = this.scale;
     const cx = W / 2;
@@ -67,16 +84,16 @@ export class CarSelectionScene extends Phaser.Scene {
     // ── Background ────────────────────────────────────────────────────────
     this.add.rectangle(0, 0, W, H, 0x0a0a0a).setOrigin(0, 0);
     for (let i = 0; i < 5; i++) {
-      this.add.rectangle(cx - 4, 55 + i * 65, 8, 40, 0x1c1c1c);
+      this.add.rectangle(cx - 4, 55 + i * 60, 8, 36, 0x1c1c1c);
     }
 
     // ── Title ─────────────────────────────────────────────────────────────
-    this.add.text(cx, 36, "SELECT YOUR CAR", {
+    this.add.text(cx, 34, "SELECT YOUR CAR", {
       fontSize: "36px", fontFamily: "monospace",
       color: "#ff4400", stroke: "#000", strokeThickness: 5,
     }).setOrigin(0.5);
 
-    this.add.text(cx, 70, "← →  BROWSE     ENTER  RACE", {
+    this.add.text(cx, 68, "← →  BROWSE     ENTER  RACE", {
       fontSize: "12px", fontFamily: "monospace", color: "#444444",
     }).setOrigin(0.5);
 
@@ -89,11 +106,10 @@ export class CarSelectionScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       this.slotCards.push(card);
 
-      // Placeholder image — texture set in refreshSlots()
-      const img = this.add.image(x, SLOT_Y - 15, "__DEFAULT");
+      const img = this.add.image(x, SLOT_Y - 14, "__DEFAULT");
       this.slotImages.push(img);
 
-      const numText = this.add.text(x, SLOT_Y + 52, "", {
+      const numText = this.add.text(x, SLOT_Y + 50, "", {
         fontSize: "11px", fontFamily: "monospace", color: "#333333",
       }).setOrigin(0.5);
       this.slotNumbers.push(numText);
@@ -126,25 +142,61 @@ export class CarSelectionScene extends Phaser.Scene {
     arrowRight.on("pointerdown", () =>
       this.selectCar((this.selectedIndex + 1) % CARS.length));
 
-    // ── Info panel ────────────────────────────────────────────────────────
-    this.add.rectangle(cx, 330, 500, 48, 0x111111).setStrokeStyle(1, 0x2a2a2a);
-    this.nameText = this.add.text(cx, 319, "", {
+    // ── Info panel (car name / tagline) ───────────────────────────────────
+    this.add.rectangle(cx, 315, 500, 44, 0x111111).setStrokeStyle(1, 0x2a2a2a);
+    this.nameText = this.add.text(cx, 305, "", {
       fontSize: "20px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
-    this.taglineText = this.add.text(cx, 342, "", {
+    this.taglineText = this.add.text(cx, 326, "", {
       fontSize: "13px", fontFamily: "monospace", color: "#777777",
     }).setOrigin(0.5);
 
     // ── Car counter ───────────────────────────────────────────────────────
-    this.counterText = this.add.text(cx, 363, "", {
+    this.counterText = this.add.text(cx, 345, "", {
       fontSize: "11px", fontFamily: "monospace", color: "#333333",
     }).setOrigin(0.5);
 
+    // ── Difficulty selector ───────────────────────────────────────────────
+    this.add.text(cx, 360, "DIFFICULTY", {
+      fontSize: "11px", fontFamily: "monospace", color: "#555555",
+    }).setOrigin(0.5);
+
+    for (let i = 0; i < DIFFICULTIES.length; i++) {
+      const cfg  = DIFFICULTIES[i];
+      const btnX = DIFF_START_X + i * (DIFF_BTN_W + DIFF_BTN_GAP) + DIFF_BTN_W / 2;
+
+      const bg = this.add.rectangle(btnX, DIFF_BTN_Y, DIFF_BTN_W, DIFF_BTN_H, 0x111111)
+        .setStrokeStyle(2, 0x333333)
+        .setInteractive({ useHandCursor: true });
+      this.diffBtnBgs.push(bg);
+
+      const label = this.add.text(btnX, DIFF_BTN_Y, cfg.label, {
+        fontSize: "13px", fontFamily: "monospace",
+        color: "#555555", fontStyle: "bold",
+      }).setOrigin(0.5);
+      this.diffBtnLabels.push(label);
+
+      bg.on("pointerdown", () => this.selectDifficulty(i));
+      bg.on("pointerover", () => {
+        if (i !== this.selectedDifficultyIndex) bg.setFillStyle(0x1a1a1a);
+      });
+      bg.on("pointerout", () => {
+        if (i !== this.selectedDifficultyIndex) bg.setFillStyle(0x111111);
+      });
+    }
+
+    this.diffDescText = this.add.text(cx, 398, "", {
+      fontSize: "11px", fontFamily: "monospace", color: "#555555",
+    }).setOrigin(0.5);
+
+    // Apply initial difficulty highlight
+    this.selectDifficulty(this.selectedDifficultyIndex);
+
     // ── Race button ───────────────────────────────────────────────────────
-    const btnBg = this.add.rectangle(cx, 400, 220, 46, 0xff4400)
+    const btnBg = this.add.rectangle(cx, 422, 220, 40, 0xff4400)
       .setInteractive({ useHandCursor: true });
-    const btnText = this.add.text(cx, 400, "RACE!", {
-      fontSize: "24px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
+    const btnText = this.add.text(cx, 422, "RACE!", {
+      fontSize: "22px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
 
     btnBg.on("pointerover", () => btnBg.setFillStyle(0xff6622));
@@ -158,7 +210,7 @@ export class CarSelectionScene extends Phaser.Scene {
     });
 
     // ── Back link ─────────────────────────────────────────────────────────
-    const backText = this.add.text(cx, 446, "← BACK TO MENU", {
+    const backText = this.add.text(cx, 443, "← BACK TO MENU", {
       fontSize: "12px", fontFamily: "monospace", color: "#444444",
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     backText.on("pointerover", () => backText.setColor("#888888"));
@@ -216,7 +268,27 @@ export class CarSelectionScene extends Phaser.Scene {
     this.counterText.setText(`${index + 1} / ${CARS.length}`);
   }
 
+  private selectDifficulty(index: number): void {
+    this.selectedDifficultyIndex = index;
+
+    for (let i = 0; i < DIFFICULTIES.length; i++) {
+      const cfg   = DIFFICULTIES[i];
+      const isSelected = i === index;
+
+      this.diffBtnBgs[i]
+        .setFillStyle(isSelected ? cfg.color : 0x111111)
+        .setStrokeStyle(2, isSelected ? cfg.color : 0x333333);
+
+      this.diffBtnLabels[i].setColor(isSelected ? "#000000" : cfg.colorStr);
+    }
+
+    this.diffDescText.setText(DIFFICULTIES[index].description);
+  }
+
   private startRace(): void {
-    this.scene.start("RaceScene", { carType: CARS[this.selectedIndex].type });
+    this.scene.start("RaceScene", {
+      carType:    CARS[this.selectedIndex].type,
+      difficulty: DIFFICULTIES[this.selectedDifficultyIndex].key,
+    });
   }
 }

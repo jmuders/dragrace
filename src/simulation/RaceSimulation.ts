@@ -21,13 +21,17 @@ export interface SimulationState {
 
 export class RaceSimulation {
   private car = new Car();
-  private ai = new AIOpponent();
+  private ai: AIOpponent;
 
   private phase: RacePhase = RacePhase.Staging;
   private countdownTimer = 0;
   private ambersLit = 0;
   private greenLit = false;
   private elapsed = 0;
+
+  constructor(difficultyKey?: string) {
+    this.ai = new AIOpponent(difficultyKey);
+  }
 
   // Last input snapshot used by scenes
   lastShiftEvent: ShiftEvent | null = null;

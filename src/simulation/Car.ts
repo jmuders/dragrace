@@ -15,7 +15,7 @@ import {
   REV_LIMITER_WINDOW,
 } from "../constants";
 import {
-  CarState, PlayerInput, LaunchGrade, ShiftGrade, ShiftEvent,
+  CarState, PlayerInput, LaunchGrade, ShiftGrade, ShiftEvent, CarPhysicsConfig,
 } from "../types";
 
 export class Car {
@@ -47,6 +47,24 @@ export class Car {
   // ── race clock ────────────────────────────────────────────────────────────
   private elapsedTime = 0;        // seconds since green light
 
+  // ── per-car physics config ────────────────────────────────────────────────
+  private readonly cfg: CarPhysicsConfig;
+
+  constructor(config?: CarPhysicsConfig) {
+    this.cfg = config ?? {
+      torqueNm:           ENGINE_TORQUE_BASE,
+      massKg:             CAR_MASS,
+      aeroDragCoeff:      AERO_DRAG,
+      wheelspinPenalty:   WHEELSPIN_PENALTY,
+      bogPenalty:         BOG_PENALTY,
+      launchPerfectLow:   LAUNCH_RPM_PERFECT_LOW,
+      launchPerfectHigh:  LAUNCH_RPM_PERFECT_HIGH,
+      launchGoodLow:      LAUNCH_RPM_GOOD_LOW,
+      launchGoodHigh:     LAUNCH_RPM_GOOD_HIGH,
+      shiftPerfectWindow: SHIFT_RPM_PERFECT_WINDOW,
+      shiftGoodWindow:    SHIFT_RPM_GOOD_WINDOW,
+    };
+  }
   // ─── Staging phase: player revs engine ───────────────────────────────────
 
   /** Call every frame during staging (before green). throttle = held key */
@@ -150,22 +168,22 @@ export class Car {
   // ─── Private helpers ──────────────────────────────────────────────────────
 
   private evaluateLaunch(rpm: number): LaunchGrade {
-    if (rpm >= LAUNCH_RPM_PERFECT_LOW && rpm <= LAUNCH_RPM_PERFECT_HIGH) {
+    if (rpm >= this.cfg.launchPerfectLow && rpm <= this.cfg.launchPerfectHigh) {
       return LaunchGrade.Perfect;
     }
-    if (rpm >= LAUNCH_RPM_GOOD_LOW && rpm <= LAUNCH_RPM_GOOD_HIGH) {
+    if (rpm >= this.cfg.launchGoodLow && rpm <= this.cfg.launchGoodHigh) {
       return LaunchGrade.Good;
     }
-    if (rpm > LAUNCH_RPM_GOOD_HIGH) return LaunchGrade.Wheelspin;
+    if (rpm > this.cfg.launchGoodHigh) return LaunchGrade.Wheelspin;
     return LaunchGrade.Bog;
   }
 
   private launchMultiplierForGrade(grade: LaunchGrade): number {
     switch (grade) {
-      case LaunchGrade.Perfect:   return 1.08; // bigger reward for perfect launch
+      case LaunchGrade.Perfect:   return 1.08;
       case LaunchGrade.Good:      return 1.0;
-      case LaunchGrade.Wheelspin: return WHEELSPIN_PENALTY;
-      case LaunchGrade.Bog:       return BOG_PENALTY;
+      case LaunchGrade.Wheelspin: return this.cfg.wheelspinPenalty;
+      case LaunchGrade.Bog:       return this.cfg.bogPenalty;
     }
   }
 
@@ -198,9 +216,9 @@ export class Car {
 
   private evaluateShift(rpm: number): ShiftGrade {
     const delta = Math.abs(rpm - SHIFT_RPM_IDEAL);
-    if (delta <= SHIFT_RPM_PERFECT_WINDOW) return ShiftGrade.Perfect;
-    if (delta <= SHIFT_RPM_GOOD_WINDOW)    return ShiftGrade.Good;
-    if (rpm < SHIFT_RPM_IDEAL)             return ShiftGrade.Early;
+    if (delta <= this.cfg.shiftPerfectWindow) return ShiftGrade.Perfect;
+    if (delta <= this.cfg.shiftGoodWindow)    return ShiftGrade.Good;
+    if (rpm < SHIFT_RPM_IDEAL)                return ShiftGrade.Early;
     return ShiftGrade.Late;
   }
 
@@ -220,7 +238,7 @@ export class Car {
     }
     this.revLimiterActive = this.rpm >= limiterRpmLow;
 
-    const driveForce = (ENGINE_TORQUE_BASE * torqueFactor * ratio * FINAL_DRIVE)
+    const driveForce = (this.cfg.torqueNm * torqueFactor * ratio * FINAL_DRIVE)
       / TYRE_RADIUS
       * this.launchMultiplier
       * limiterFactor;
@@ -228,10 +246,10 @@ export class Car {
     const nitroForce = this.nitroActive ? NITRO_FORCE : 0;
     const nitroRpmBoost = this.nitroActive ? NITRO_RPM_BOOST : 0;
 
-    const drag = AERO_DRAG * this.speed * this.speed;
+    const drag = this.cfg.aeroDragCoeff * this.speed * this.speed;
     const netForce = driveForce + nitroForce - drag - ROLLING_RESISTANCE;
 
-    const acceleration = netForce / CAR_MASS;
+    const acceleration = netForce / this.cfg.massKg;
     this.speed = Math.max(0, this.speed + acceleration * dt);
     this.distance += this.speed * dt;
 
@@ -248,14 +266,13 @@ export class Car {
     this.revLimiterActive = false;
 
     // Aerodynamic drag (quadratic) + rolling resistance
-    const aeroDrag = AERO_DRAG * this.speed * this.speed;
+    const aeroDrag = this.cfg.aeroDragCoeff * this.speed * this.speed;
     // Gentle engine braking: less than full drag, scaled down in higher gears
-    // so lifting at top speed doesn't feel like hitting a wall
     const gearFactor = GEAR_RATIOS[this.gear] / GEAR_RATIOS[1];
     const engineBraking = this.speed > 2 ? ENGINE_BRAKING_FORCE * gearFactor : 0;
 
     const totalResistance = aeroDrag + ROLLING_RESISTANCE + engineBraking;
-    const decel = totalResistance / CAR_MASS;
+    const decel = totalResistance / this.cfg.massKg;
     this.speed = Math.max(0, this.speed - decel * dt);
     this.distance += this.speed * dt;
 

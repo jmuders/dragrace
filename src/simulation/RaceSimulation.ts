@@ -5,6 +5,7 @@ import {
   COUNTDOWN_LIGHT_INTERVAL, COUNTDOWN_AMBER_COUNT,
   BEST_TIME_KEY,
 } from "../constants";
+import { getCarPhysicsConfig } from "../data/CarData";
 
 export interface CountdownState {
   ambersLit: number;   // 0-3
@@ -29,8 +30,9 @@ export class RaceSimulation {
   private greenLit = false;
   private elapsed = 0;
 
-  constructor(difficultyKey?: string) {
-    this.ai = new AIOpponent(difficultyKey);
+  constructor(difficultyKey?: string, carType?: string) {
+    this.ai  = new AIOpponent(difficultyKey);
+    this.car = new Car(getCarPhysicsConfig(carType ?? "silver"));
   }
 
   // Last input snapshot used by scenes

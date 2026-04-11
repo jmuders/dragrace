@@ -1,66 +1,58 @@
 import Phaser from "phaser";
-import { createCarTexture, preloadCarTextures, getCarDisplayScale, CarType } from "../graphics/CarSprites";
+import { createCarTexture, preloadCarTextures, getCarDisplayScale } from "../graphics/CarSprites";
+import { CAR_DATA } from "../data/CarData";
+import { CarStats } from "../types";
 
-interface CarOption {
-  type: CarType;
-  name: string;
-  tagline: string;
-}
-
-const CARS: CarOption[] = [
-  { type: "silver",        name: "SILBER DREIER",    tagline: "The Bavarian sport sedan" },
-  { type: "red",           name: "SCARLET ACHT",     tagline: "Mid-engine Germanic fury" },
-  { type: "green",         name: "VERDE GALLETTO",   tagline: "Baby bull with a big bite" },
-  { type: "orange",        name: "AMBER EXTREMA",    tagline: "Track weapon, zero compromise" },
-  { type: "blue_cobra",    name: "AZURE MAMBA",      tagline: "Classic American serpent" },
-  { type: "black_hyper",   name: "PHANTOM SEIZE",    tagline: "W16 French hypermachine" },
-  { type: "gray_roadster", name: "PEWTER SPYDER",    tagline: "Open-air Stuttgart precision" },
-  { type: "dark_hyper",    name: "NORDIC WRAITH",    tagline: "Scandinavian speed phantom" },
-  { type: "red_f40",       name: "ROSSO QUARANTA",   tagline: "Twin-turbo Italian legend" },
-  { type: "orange_supra",  name: "TANGERINE SHOGUN", tagline: "Inline-six JDM warrior" },
-  { type: "white_proto",   name: "IVORY VALKYRE",    tagline: "Aero-sculpted track demon" },
-  { type: "red_roadster",  name: "CRIMSON BARCHETTA",tagline: "Italian open-top elegance" },
-  { type: "yellow_lotus",  name: "CITRINE ELARA",    tagline: "Featherweight corner scalpel" },
-  { type: "orange_mclaren",name: "COPPER APEX ONE",  tagline: "F1-derived speed icon" },
-  { type: "red_rx7",       name: "CRIMSON HELIX 7",  tagline: "Rotary-spinning JDM icon" },
-  { type: "blue_viper",    name: "COBALT ANACONDA",  tagline: "V10 American predator" },
-  { type: "lime_super",    name: "ACID TORO",        tagline: "Raging V12 Italian bull" },
-  { type: "red_hyper",     name: "ROSSO CAVALLO HY", tagline: "Hybrid prancing horse" },
-  { type: "blue_gt40",     name: "INDIGO APEX 40",   tagline: "Le Mans endurance legend" },
-  { type: "blue_porsche",  name: "COBALT BOXER GT",  tagline: "Flat-six Stuttgart hypercar" },
-  { type: "yellow_muscle", name: "SOLAR PONY",       tagline: "American V8 pony car" },
-];
+// ─── Layout constants ─────────────────────────────────────────────────────────
 
 const SLOT_X   = [160, 400, 640];
-const SLOT_Y   = 200;
+const SLOT_Y   = 195;
 const CARD_W   = 210;
-const CARD_H   = 118;
-const VISIBLE  = 3; // cards shown at once
+const CARD_H   = 110;
+const VISIBLE  = 3;
+
+// Stat bar layout (5 groups in a single row, centred @ 800px canvas width)
+const STAT_NAMES     = ["PWR", "WGT", "GRP", "SHF", "AER"] as const;
+const STAT_BLOCK_W   = 12;
+const STAT_BLOCK_H   =  8;
+const STAT_BLOCK_GAP =  2;
+const STAT_LABEL_W   = 25;   // reserved width for the 3-char label text
+const STAT_LABEL_GAP =  4;   // gap between label and first block
+const STAT_BLOCKS_W  = 5 * STAT_BLOCK_W + 4 * STAT_BLOCK_GAP;   // 68px
+const STAT_GROUP_W   = STAT_LABEL_W + STAT_LABEL_GAP + STAT_BLOCKS_W; // 97px
+const STAT_GROUP_GAP = 13;
+const STAT_TOTAL_W   = 5 * STAT_GROUP_W + 4 * STAT_GROUP_GAP;   // ~537px
+const STAT_START_X   = Math.round((800 - STAT_TOTAL_W) / 2);
+const STAT_BAR_Y     = 364;  // top edge of the bar blocks
+
+/** Colours for filled blocks (index = stat value - 1) */
+const STAT_COLORS = [0xe03300, 0xff7700, 0xffcc00, 0x88ee00, 0x00cc55] as const;
+const STAT_EMPTY  = 0x2a2a2a;
+
+// ─── Scene ───────────────────────────────────────────────────────────────────
 
 export class CarSelectionScene extends Phaser.Scene {
   private selectedIndex = 0;
   private viewOffset    = 0;
 
-  // Slot display objects (reused, textures swapped on scroll)
-  private slotCards:   Phaser.GameObjects.Rectangle[]  = [];
-  private slotImages:  Phaser.GameObjects.Image[]       = [];
-  private slotNumbers: Phaser.GameObjects.Text[]        = [];
+  private slotCards:   Phaser.GameObjects.Rectangle[] = [];
+  private slotImages:  Phaser.GameObjects.Image[]      = [];
+  private slotNumbers: Phaser.GameObjects.Text[]       = [];
 
   private nameText!:    Phaser.GameObjects.Text;
   private taglineText!: Phaser.GameObjects.Text;
   private counterText!: Phaser.GameObjects.Text;
+  private statsGfx!:    Phaser.GameObjects.Graphics;
 
   constructor() { super({ key: "CarSelectionScene" }); }
 
-  preload(): void {
-    preloadCarTextures(this);
-  }
+  preload(): void { preloadCarTextures(this); }
 
   create(): void {
     // Restore previously selected car from registry
     const savedType = this.game.registry.get("carType") as string | undefined;
     if (savedType) {
-      const idx = CARS.findIndex(c => c.type === savedType);
+      const idx = CAR_DATA.findIndex(c => c.type === savedType);
       if (idx >= 0) this.selectedIndex = idx;
     }
 
@@ -68,8 +60,7 @@ export class CarSelectionScene extends Phaser.Scene {
     this.slotImages  = [];
     this.slotNumbers = [];
 
-    const { width: W, height: H } = this.scale;
-    const cx = W / 2;
+    const W = 800, H = 450, cx = W / 2;
 
     // ── Background ────────────────────────────────────────────────────────
     this.add.rectangle(0, 0, W, H, 0x0a0a0a).setOrigin(0, 0);
@@ -96,24 +87,24 @@ export class CarSelectionScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       this.slotCards.push(card);
 
-      const img = this.add.image(x, SLOT_Y - 14, "__DEFAULT");
+      const img = this.add.image(x, SLOT_Y - 12, "__DEFAULT");
       this.slotImages.push(img);
 
-      const numText = this.add.text(x, SLOT_Y + 50, "", {
+      const numText = this.add.text(x, SLOT_Y + 46, "", {
         fontSize: "11px", fontFamily: "monospace", color: "#333333",
       }).setOrigin(0.5);
       this.slotNumbers.push(numText);
 
       card.on("pointerdown", () => {
-        const carIdx = (this.viewOffset + slot) % CARS.length;
+        const carIdx = (this.viewOffset + slot) % CAR_DATA.length;
         this.selectCar(carIdx);
       });
       card.on("pointerover", () => {
-        const carIdx = (this.viewOffset + slot) % CARS.length;
+        const carIdx = (this.viewOffset + slot) % CAR_DATA.length;
         if (this.selectedIndex !== carIdx) card.setFillStyle(0x181818);
       });
       card.on("pointerout", () => {
-        const carIdx = (this.viewOffset + slot) % CARS.length;
+        const carIdx = (this.viewOffset + slot) % CAR_DATA.length;
         if (this.selectedIndex !== carIdx) card.setFillStyle(0x111111);
       });
     }
@@ -128,28 +119,43 @@ export class CarSelectionScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     arrowLeft.on("pointerdown",  () =>
-      this.selectCar((this.selectedIndex + CARS.length - 1) % CARS.length));
+      this.selectCar((this.selectedIndex + CAR_DATA.length - 1) % CAR_DATA.length));
     arrowRight.on("pointerdown", () =>
-      this.selectCar((this.selectedIndex + 1) % CARS.length));
+      this.selectCar((this.selectedIndex + 1) % CAR_DATA.length));
 
-    // ── Info panel (car name / tagline) ───────────────────────────────────
-    this.add.rectangle(cx, 320, 500, 46, 0x111111).setStrokeStyle(1, 0x2a2a2a);
-    this.nameText = this.add.text(cx, 309, "", {
+    // ── Info panel ────────────────────────────────────────────────────────
+    this.add.rectangle(cx, 306, 500, 42, 0x111111).setStrokeStyle(1, 0x2a2a2a);
+    this.nameText = this.add.text(cx, 297, "", {
       fontSize: "20px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
-    this.taglineText = this.add.text(cx, 331, "", {
+    this.taglineText = this.add.text(cx, 317, "", {
       fontSize: "13px", fontFamily: "monospace", color: "#777777",
     }).setOrigin(0.5);
-
-    // ── Car counter ───────────────────────────────────────────────────────
-    this.counterText = this.add.text(cx, 352, "", {
+    this.counterText = this.add.text(cx, 334, "", {
       fontSize: "11px", fontFamily: "monospace", color: "#333333",
     }).setOrigin(0.5);
 
+    // ── Specs section ─────────────────────────────────────────────────────
+    this.add.rectangle(cx, 345, 500, 1, 0x2a2a2a);
+    this.add.text(cx, 353, "SPECS", {
+      fontSize: "10px", fontFamily: "monospace", color: "#444444",
+    }).setOrigin(0.5);
+
+    // Static stat labels (created once, stay in place)
+    for (let i = 0; i < STAT_NAMES.length; i++) {
+      const gx = STAT_START_X + i * (STAT_GROUP_W + STAT_GROUP_GAP);
+      this.add.text(gx + STAT_LABEL_W, STAT_BAR_Y + Math.round(STAT_BLOCK_H / 2), STAT_NAMES[i], {
+        fontSize: "10px", fontFamily: "monospace", color: "#555555",
+      }).setOrigin(1, 0.5);
+    }
+
+    // Graphics object that will be cleared + redrawn on every car change
+    this.statsGfx = this.add.graphics();
+
     // ── Confirm button ────────────────────────────────────────────────────
-    const btnBg = this.add.rectangle(cx, 403, 240, 42, 0x226644)
+    const btnBg = this.add.rectangle(cx, 405, 240, 40, 0x226644)
       .setInteractive({ useHandCursor: true });
-    const btnText = this.add.text(cx, 403, "CONFIRM CAR  ►", {
+    const btnText = this.add.text(cx, 405, "CONFIRM CAR  ►", {
       fontSize: "18px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
 
@@ -164,7 +170,7 @@ export class CarSelectionScene extends Phaser.Scene {
     });
 
     // ── Back link ─────────────────────────────────────────────────────────
-    const backText = this.add.text(cx, 438, "← BACK TO MENU (no change)", {
+    const backText = this.add.text(cx, 437, "← BACK TO MENU (no change)", {
       fontSize: "12px", fontFamily: "monospace", color: "#444444",
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     backText.on("pointerover", () => backText.setColor("#888888"));
@@ -174,20 +180,21 @@ export class CarSelectionScene extends Phaser.Scene {
     // ── Keyboard ──────────────────────────────────────────────────────────
     const kbd = this.input.keyboard!;
     kbd.on("keydown-LEFT",  () =>
-      this.selectCar((this.selectedIndex + CARS.length - 1) % CARS.length));
+      this.selectCar((this.selectedIndex + CAR_DATA.length - 1) % CAR_DATA.length));
     kbd.on("keydown-RIGHT", () =>
-      this.selectCar((this.selectedIndex + 1) % CARS.length));
+      this.selectCar((this.selectedIndex + 1) % CAR_DATA.length));
     kbd.on("keydown-ENTER", () => this.confirmCar());
     kbd.on("keydown-ESC",   () => this.scene.start("MenuScene"));
 
     this.selectCar(this.selectedIndex);
   }
 
-  /** Update the 3 visible slots to match the current viewOffset. */
+  // ─── Private helpers ──────────────────────────────────────────────────────
+
   private refreshSlots(): void {
     for (let slot = 0; slot < VISIBLE; slot++) {
-      const carIdx = (this.viewOffset + slot) % CARS.length;
-      const car    = CARS[carIdx];
+      const carIdx = (this.viewOffset + slot) % CAR_DATA.length;
+      const car    = CAR_DATA[carIdx];
 
       this.slotCards[slot].setVisible(true);
       this.slotImages[slot].setVisible(true);
@@ -199,7 +206,6 @@ export class CarSelectionScene extends Phaser.Scene {
 
       this.slotNumbers[slot].setText(String(carIdx + 1).padStart(2, "0"));
 
-      // Highlight selected vs. unselected
       if (carIdx === this.selectedIndex) {
         this.slotCards[slot].setFillStyle(0x1a0800).setStrokeStyle(3, 0xff4400);
       } else {
@@ -210,22 +216,41 @@ export class CarSelectionScene extends Phaser.Scene {
 
   private selectCar(index: number): void {
     this.selectedIndex = index;
-
-    // Keep selected car in the center slot, with wrap-around
-    this.viewOffset = (index - 1 + CARS.length) % CARS.length;
-
+    this.viewOffset    = (index - 1 + CAR_DATA.length) % CAR_DATA.length;
     this.refreshSlots();
 
-    const car = CARS[index];
+    const car = CAR_DATA[index];
     this.nameText.setText(car.name);
     this.taglineText.setText(car.tagline);
-    this.counterText.setText(`${index + 1} / ${CARS.length}`);
+    this.counterText.setText(`${index + 1} / ${CAR_DATA.length}`);
+    this.drawStats(car.stats);
+  }
+
+  /** Redraws the 5×5 stat bars for the currently selected car. */
+  private drawStats(stats: CarStats): void {
+    this.statsGfx.clear();
+
+    const vals = [stats.power, stats.weight, stats.grip, stats.shift, stats.aero];
+
+    for (let i = 0; i < 5; i++) {
+      const val    = vals[i];
+      const gx     = STAT_START_X + i * (STAT_GROUP_W + STAT_GROUP_GAP);
+      const barsX  = gx + STAT_LABEL_W + STAT_LABEL_GAP;
+      const color  = STAT_COLORS[val - 1];
+
+      for (let b = 0; b < 5; b++) {
+        const bx = barsX + b * (STAT_BLOCK_W + STAT_BLOCK_GAP);
+        this.statsGfx.fillStyle(b < val ? color : STAT_EMPTY, 1);
+        this.statsGfx.fillRect(bx, STAT_BAR_Y, STAT_BLOCK_W, STAT_BLOCK_H);
+      }
+    }
   }
 
   private confirmCar(): void {
-    const car = CARS[this.selectedIndex];
+    const car = CAR_DATA[this.selectedIndex];
     this.game.registry.set("carType", car.type);
     this.game.registry.set("carName", car.name);
     this.scene.start("MenuScene");
   }
 }
+

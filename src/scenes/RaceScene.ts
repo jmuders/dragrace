@@ -32,6 +32,7 @@ export class RaceScene extends Phaser.Scene {
   private sim!: RaceSimulation;
   private carType: CarType = "silver";
   private opponentCarType: CarType = "orange";
+  private difficulty = "STREET";
 
   private keyThrottle!:    Phaser.Input.Keyboard.Key;
   private keyThrottleAlt!: Phaser.Input.Keyboard.Key;
@@ -84,6 +85,7 @@ export class RaceScene extends Phaser.Scene {
 
   create(data?: { carType?: CarType; opponentCarType?: CarType; difficulty?: string }): void {
     this.carType = data?.carType ?? "silver";
+    this.difficulty = data?.difficulty ?? "STREET";
     this.sim = new RaceSimulation(data?.difficulty);
     this.shiftEdge = false;
     this.feedbackTimer = 0;
@@ -230,7 +232,7 @@ export class RaceScene extends Phaser.Scene {
     }
 
     if (this.sim.isFinished()) {
-      this.scene.start("ResultsScene", { result: this.sim.buildResult(), carType: this.carType, opponentCarType: this.opponentCarType });
+      this.scene.start("ResultsScene", { result: this.sim.buildResult(), carType: this.carType, opponentCarType: this.opponentCarType, difficulty: this.difficulty });
     }
   }
 

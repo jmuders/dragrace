@@ -1,6 +1,5 @@
 import Phaser from "phaser";
 import { createCarTexture, preloadCarTextures, getCarDisplayScale, CarType } from "../graphics/CarSprites";
-import { DIFFICULTIES, DEFAULT_DIFFICULTY_INDEX } from "../constants";
 
 interface CarOption {
   type: CarType;
@@ -38,31 +37,18 @@ const CARD_W   = 210;
 const CARD_H   = 118;
 const VISIBLE  = 3; // cards shown at once
 
-// Difficulty button layout (4 buttons, centred in 800 px canvas)
-const DIFF_BTN_W  = 154;
-const DIFF_BTN_H  = 26;
-const DIFF_BTN_GAP = 10;
-const DIFF_TOTAL_W = 4 * DIFF_BTN_W + 3 * DIFF_BTN_GAP; // 646
-const DIFF_START_X = (800 - DIFF_TOTAL_W) / 2;            // 77
-const DIFF_BTN_Y   = 378;
-
 export class CarSelectionScene extends Phaser.Scene {
   private selectedIndex = 0;
   private viewOffset    = 0;
-
-  private selectedDifficultyIndex = DEFAULT_DIFFICULTY_INDEX;
 
   // Slot display objects (reused, textures swapped on scroll)
   private slotCards:   Phaser.GameObjects.Rectangle[]  = [];
   private slotImages:  Phaser.GameObjects.Image[]       = [];
   private slotNumbers: Phaser.GameObjects.Text[]        = [];
 
-  private nameText!:        Phaser.GameObjects.Text;
-  private taglineText!:     Phaser.GameObjects.Text;
-  private counterText!:     Phaser.GameObjects.Text;
-  private diffDescText!:    Phaser.GameObjects.Text;
-  private diffBtnBgs:       Phaser.GameObjects.Rectangle[] = [];
-  private diffBtnLabels:    Phaser.GameObjects.Text[]      = [];
+  private nameText!:    Phaser.GameObjects.Text;
+  private taglineText!: Phaser.GameObjects.Text;
+  private counterText!: Phaser.GameObjects.Text;
 
   constructor() { super({ key: "CarSelectionScene" }); }
 
@@ -71,12 +57,16 @@ export class CarSelectionScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.slotCards        = [];
-    this.slotImages       = [];
-    this.slotNumbers      = [];
-    this.diffBtnBgs       = [];
-    this.diffBtnLabels    = [];
-    this.selectedDifficultyIndex = DEFAULT_DIFFICULTY_INDEX;
+    // Restore previously selected car from registry
+    const savedType = this.game.registry.get("carType") as string | undefined;
+    if (savedType) {
+      const idx = CARS.findIndex(c => c.type === savedType);
+      if (idx >= 0) this.selectedIndex = idx;
+    }
+
+    this.slotCards   = [];
+    this.slotImages  = [];
+    this.slotNumbers = [];
 
     const { width: W, height: H } = this.scale;
     const cx = W / 2;
@@ -93,7 +83,7 @@ export class CarSelectionScene extends Phaser.Scene {
       color: "#ff4400", stroke: "#000", strokeThickness: 5,
     }).setOrigin(0.5);
 
-    this.add.text(cx, 68, "← →  BROWSE     ENTER  RACE", {
+    this.add.text(cx, 68, "← →  BROWSE     ENTER  CONFIRM", {
       fontSize: "12px", fontFamily: "monospace", color: "#444444",
     }).setOrigin(0.5);
 
@@ -143,65 +133,29 @@ export class CarSelectionScene extends Phaser.Scene {
       this.selectCar((this.selectedIndex + 1) % CARS.length));
 
     // ── Info panel (car name / tagline) ───────────────────────────────────
-    this.add.rectangle(cx, 315, 500, 44, 0x111111).setStrokeStyle(1, 0x2a2a2a);
-    this.nameText = this.add.text(cx, 305, "", {
+    this.add.rectangle(cx, 320, 500, 46, 0x111111).setStrokeStyle(1, 0x2a2a2a);
+    this.nameText = this.add.text(cx, 309, "", {
       fontSize: "20px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
-    this.taglineText = this.add.text(cx, 326, "", {
+    this.taglineText = this.add.text(cx, 331, "", {
       fontSize: "13px", fontFamily: "monospace", color: "#777777",
     }).setOrigin(0.5);
 
     // ── Car counter ───────────────────────────────────────────────────────
-    this.counterText = this.add.text(cx, 345, "", {
+    this.counterText = this.add.text(cx, 352, "", {
       fontSize: "11px", fontFamily: "monospace", color: "#333333",
     }).setOrigin(0.5);
 
-    // ── Difficulty selector ───────────────────────────────────────────────
-    this.add.text(cx, 360, "DIFFICULTY", {
-      fontSize: "11px", fontFamily: "monospace", color: "#555555",
-    }).setOrigin(0.5);
-
-    for (let i = 0; i < DIFFICULTIES.length; i++) {
-      const cfg  = DIFFICULTIES[i];
-      const btnX = DIFF_START_X + i * (DIFF_BTN_W + DIFF_BTN_GAP) + DIFF_BTN_W / 2;
-
-      const bg = this.add.rectangle(btnX, DIFF_BTN_Y, DIFF_BTN_W, DIFF_BTN_H, 0x111111)
-        .setStrokeStyle(2, 0x333333)
-        .setInteractive({ useHandCursor: true });
-      this.diffBtnBgs.push(bg);
-
-      const label = this.add.text(btnX, DIFF_BTN_Y, cfg.label, {
-        fontSize: "13px", fontFamily: "monospace",
-        color: "#555555", fontStyle: "bold",
-      }).setOrigin(0.5);
-      this.diffBtnLabels.push(label);
-
-      bg.on("pointerdown", () => this.selectDifficulty(i));
-      bg.on("pointerover", () => {
-        if (i !== this.selectedDifficultyIndex) bg.setFillStyle(0x1a1a1a);
-      });
-      bg.on("pointerout", () => {
-        if (i !== this.selectedDifficultyIndex) bg.setFillStyle(0x111111);
-      });
-    }
-
-    this.diffDescText = this.add.text(cx, 398, "", {
-      fontSize: "11px", fontFamily: "monospace", color: "#555555",
-    }).setOrigin(0.5);
-
-    // Apply initial difficulty highlight
-    this.selectDifficulty(this.selectedDifficultyIndex);
-
-    // ── Race button ───────────────────────────────────────────────────────
-    const btnBg = this.add.rectangle(cx, 422, 220, 40, 0xff4400)
+    // ── Confirm button ────────────────────────────────────────────────────
+    const btnBg = this.add.rectangle(cx, 403, 240, 42, 0x226644)
       .setInteractive({ useHandCursor: true });
-    const btnText = this.add.text(cx, 422, "RACE!", {
-      fontSize: "22px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
+    const btnText = this.add.text(cx, 403, "CONFIRM CAR  ►", {
+      fontSize: "18px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
     }).setOrigin(0.5);
 
-    btnBg.on("pointerover", () => btnBg.setFillStyle(0xff6622));
-    btnBg.on("pointerout",  () => btnBg.setFillStyle(0xff4400));
-    btnBg.on("pointerdown", () => this.startRace());
+    btnBg.on("pointerover", () => btnBg.setFillStyle(0x2d8855));
+    btnBg.on("pointerout",  () => btnBg.setFillStyle(0x226644));
+    btnBg.on("pointerdown", () => this.confirmCar());
 
     this.tweens.add({
       targets: [btnBg, btnText],
@@ -210,7 +164,7 @@ export class CarSelectionScene extends Phaser.Scene {
     });
 
     // ── Back link ─────────────────────────────────────────────────────────
-    const backText = this.add.text(cx, 443, "← BACK TO MENU", {
+    const backText = this.add.text(cx, 438, "← BACK TO MENU (no change)", {
       fontSize: "12px", fontFamily: "monospace", color: "#444444",
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     backText.on("pointerover", () => backText.setColor("#888888"));
@@ -223,10 +177,10 @@ export class CarSelectionScene extends Phaser.Scene {
       this.selectCar((this.selectedIndex + CARS.length - 1) % CARS.length));
     kbd.on("keydown-RIGHT", () =>
       this.selectCar((this.selectedIndex + 1) % CARS.length));
-    kbd.on("keydown-ENTER", () => this.startRace());
+    kbd.on("keydown-ENTER", () => this.confirmCar());
     kbd.on("keydown-ESC",   () => this.scene.start("MenuScene"));
 
-    this.selectCar(0);
+    this.selectCar(this.selectedIndex);
   }
 
   /** Update the 3 visible slots to match the current viewOffset. */
@@ -268,27 +222,10 @@ export class CarSelectionScene extends Phaser.Scene {
     this.counterText.setText(`${index + 1} / ${CARS.length}`);
   }
 
-  private selectDifficulty(index: number): void {
-    this.selectedDifficultyIndex = index;
-
-    for (let i = 0; i < DIFFICULTIES.length; i++) {
-      const cfg   = DIFFICULTIES[i];
-      const isSelected = i === index;
-
-      this.diffBtnBgs[i]
-        .setFillStyle(isSelected ? cfg.color : 0x111111)
-        .setStrokeStyle(2, isSelected ? cfg.color : 0x333333);
-
-      this.diffBtnLabels[i].setColor(isSelected ? "#000000" : cfg.colorStr);
-    }
-
-    this.diffDescText.setText(DIFFICULTIES[index].description);
-  }
-
-  private startRace(): void {
-    this.scene.start("RaceScene", {
-      carType:    CARS[this.selectedIndex].type,
-      difficulty: DIFFICULTIES[this.selectedDifficultyIndex].key,
-    });
+  private confirmCar(): void {
+    const car = CARS[this.selectedIndex];
+    this.game.registry.set("carType", car.type);
+    this.game.registry.set("carName", car.name);
+    this.scene.start("MenuScene");
   }
 }

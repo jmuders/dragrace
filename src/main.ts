@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { MenuScene } from "./scenes/MenuScene";
 import { CarSelectionScene } from "./scenes/CarSelectionScene";
+import { DifficultyScene } from "./scenes/DifficultyScene";
 import { RaceScene } from "./scenes/RaceScene";
 import { ResultsScene } from "./scenes/ResultsScene";
 
@@ -10,7 +11,7 @@ const config: Phaser.Types.Core.GameConfig = {
   height: 450,
   backgroundColor: "#0a0a0a",
   pixelArt: true,
-  scene: [MenuScene, CarSelectionScene, RaceScene, ResultsScene],
+  scene: [MenuScene, CarSelectionScene, DifficultyScene, RaceScene, ResultsScene],
   parent: 'game-container',
   scale: {
     mode: Phaser.Scale.FIT,

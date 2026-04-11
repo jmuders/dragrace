@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { BEST_TIME_KEY } from "../constants";
+import { BEST_TIME_KEY, DIFFICULTIES, DEFAULT_DIFFICULTY_INDEX } from "../constants";
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -7,102 +7,118 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { width, height } = this.scale;
-    const cx = width / 2;
+    // ── Initialise registry defaults on first visit ───────────────────────
+    if (!this.game.registry.get("carType")) {
+      this.game.registry.set("carType", "silver");
+      this.game.registry.set("carName", "SILBER DREIER");
+    }
+    if (!this.game.registry.get("difficulty")) {
+      this.game.registry.set("difficulty", DIFFICULTIES[DEFAULT_DIFFICULTY_INDEX].key);
+    }
+
+    const carName  = (this.game.registry.get("carName")    as string | undefined) ?? "SILBER DREIER";
+    const diffKey  = (this.game.registry.get("difficulty") as string | undefined) ?? DIFFICULTIES[DEFAULT_DIFFICULTY_INDEX].key;
+    const diffCfg  = DIFFICULTIES.find(d => d.key === diffKey) ?? DIFFICULTIES[DEFAULT_DIFFICULTY_INDEX];
+
+    const { width: W, height: H } = this.scale;
+    const cx = W / 2;
 
     // ── Background ────────────────────────────────────────────────────────
-    this.add.rectangle(0, 0, width, height, 0x0a0a0a).setOrigin(0, 0);
-
-    // Road stripe decoration
+    this.add.rectangle(0, 0, W, H, 0x0a0a0a).setOrigin(0, 0);
     for (let i = 0; i < 5; i++) {
       this.add.rectangle(cx - 4, 55 + i * 65, 8, 40, 0x444444);
     }
 
-    // ── Title ────────────────────────────────────────────────────────────
-    this.add.text(cx, 75, "DRAG RACE", {
-      fontSize: "60px",
-      fontFamily: "monospace",
-      color: "#ff4400",
-      stroke: "#000",
-      strokeThickness: 6,
+    // ── Title ─────────────────────────────────────────────────────────────
+    this.add.text(cx, 60, "DRAG RACE", {
+      fontSize: "60px", fontFamily: "monospace",
+      color: "#ff4400", stroke: "#000", strokeThickness: 6,
     }).setOrigin(0.5);
 
-    this.add.text(cx, 130, "QUARTER MILE", {
-      fontSize: "20px",
-      fontFamily: "monospace",
-      color: "#ffaa00",
+    this.add.text(cx, 112, "QUARTER MILE", {
+      fontSize: "20px", fontFamily: "monospace", color: "#ffaa00",
     }).setOrigin(0.5);
 
-    // ── Controls reference ────────────────────────────────────────────────
-    const isTouch = this.sys.game.device.input.touch;
+    // ── Current selection badge ───────────────────────────────────────────
+    this.add.rectangle(cx, 154, 560, 34, 0x111111).setStrokeStyle(1, 0x2a2a2a);
 
-    const controlLines = isTouch ? [
-      "CONTROLS",
-      "",
-      "THROTTLE  –  hold (left)",
-      "SHIFT     –  tap  (right top)",
-      "NITRO     –  hold (right bot)",
-      "",
-      "Rev to the launch window,",
-      "then nail it on green!",
-    ] : [
-      "CONTROLS",
-      "",
-      "SPACE / W  –  hold throttle",
-      "S          –  shift up",
-      "N          –  nitrous",
-      "",
-      "Rev to the launch window,",
-      "then nail it on green!",
-    ];
+    // Car side
+    this.add.text(cx - 266, 154, "CAR:", {
+      fontSize: "11px", fontFamily: "monospace", color: "#555555",
+    }).setOrigin(0, 0.5);
+    this.add.text(cx - 236, 154, carName, {
+      fontSize: "13px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
+    }).setOrigin(0, 0.5);
 
-    controlLines.forEach((line, i) => {
-      this.add.text(cx, 185 + i * 22, line, {
-        fontSize: line === "CONTROLS" ? "16px" : "13px",
-        fontFamily: "monospace",
-        color: line === "CONTROLS" ? "#ffdd00" : "#cccccc",
-      }).setOrigin(0.5);
+    // Divider
+    this.add.rectangle(cx + 42, 154, 1, 20, 0x333333);
+
+    // Difficulty side
+    this.add.text(cx + 52, 154, "DIFFICULTY:", {
+      fontSize: "11px", fontFamily: "monospace", color: "#555555",
+    }).setOrigin(0, 0.5);
+    this.add.text(cx + 160, 154, diffCfg.label, {
+      fontSize: "13px", fontFamily: "monospace",
+      color: diffCfg.colorStr, fontStyle: "bold",
+    }).setOrigin(0, 0.5);
+
+    // ── Navigation buttons ────────────────────────────────────────────────
+    const BTN_W = 270;
+    const BTN_H = 44;
+
+    // SELECT CAR
+    const carBtnBg = this.add.rectangle(cx, 218, BTN_W, BTN_H, 0x1a1a1a)
+      .setStrokeStyle(2, 0x444444).setInteractive({ useHandCursor: true });
+    this.add.text(cx, 218, "SELECT CAR  ►", {
+      fontSize: "17px", fontFamily: "monospace", color: "#cccccc",
+    }).setOrigin(0.5);
+    carBtnBg.on("pointerover",  () => carBtnBg.setFillStyle(0x2a2a2a));
+    carBtnBg.on("pointerout",   () => carBtnBg.setFillStyle(0x1a1a1a));
+    carBtnBg.on("pointerdown",  () => this.scene.start("CarSelectionScene"));
+
+    // SELECT DIFFICULTY
+    const diffBtnBg = this.add.rectangle(cx, 274, BTN_W, BTN_H, 0x1a1a1a)
+      .setStrokeStyle(2, 0x444444).setInteractive({ useHandCursor: true });
+    this.add.text(cx, 274, "SELECT DIFFICULTY  ►", {
+      fontSize: "17px", fontFamily: "monospace", color: "#cccccc",
+    }).setOrigin(0.5);
+    diffBtnBg.on("pointerover",  () => diffBtnBg.setFillStyle(0x2a2a2a));
+    diffBtnBg.on("pointerout",   () => diffBtnBg.setFillStyle(0x1a1a1a));
+    diffBtnBg.on("pointerdown",  () => this.scene.start("DifficultyScene"));
+
+    // START RACE  (big orange)
+    const raceBtnBg = this.add.rectangle(cx, 350, BTN_W, 52, 0xff4400)
+      .setInteractive({ useHandCursor: true });
+    const raceBtnText = this.add.text(cx, 350, "START RACE  ▶", {
+      fontSize: "22px", fontFamily: "monospace", color: "#ffffff", fontStyle: "bold",
+    }).setOrigin(0.5);
+    raceBtnBg.on("pointerover",  () => raceBtnBg.setFillStyle(0xff6622));
+    raceBtnBg.on("pointerout",   () => raceBtnBg.setFillStyle(0xff4400));
+    raceBtnBg.on("pointerdown",  () => this.startRace());
+
+    this.tweens.add({
+      targets: [raceBtnBg, raceBtnText],
+      scaleX: 1.03, scaleY: 1.03,
+      yoyo: true, repeat: -1, duration: 700, ease: "Sine.easeInOut",
     });
 
     // ── Best time ─────────────────────────────────────────────────────────
     const stored = localStorage.getItem(BEST_TIME_KEY);
-    const bestText = stored
+    this.add.text(cx, 413, stored
       ? `BEST TIME: ${parseFloat(stored).toFixed(3)}s`
-      : "NO BEST TIME YET";
-
-    this.add.text(cx, height - 88, bestText, {
-      fontSize: "16px",
-      fontFamily: "monospace",
+      : "NO BEST TIME YET", {
+      fontSize: "14px", fontFamily: "monospace",
       color: stored ? "#00ff88" : "#666666",
     }).setOrigin(0.5);
 
-    // ── Start button ──────────────────────────────────────────────────────
-    const btnBg = this.add.rectangle(cx, height - 52, 240, 48, 0xff4400)
-      .setInteractive({ useHandCursor: true });
+    // ── Keyboard ──────────────────────────────────────────────────────────
+    this.input.keyboard!.on("keydown-ENTER", () => this.startRace());
+    this.input.keyboard!.on("keydown-SPACE", () => this.startRace());
+  }
 
-    const btnText = this.add.text(cx, height - 52, "START RACE", {
-      fontSize: "22px",
-      fontFamily: "monospace",
-      color: "#ffffff",
-      fontStyle: "bold",
-    }).setOrigin(0.5);
-
-    btnBg.on("pointerover",  () => btnBg.setFillStyle(0xff6622));
-    btnBg.on("pointerout",   () => btnBg.setFillStyle(0xff4400));
-    btnBg.on("pointerdown", () => this.scene.start("CarSelectionScene"));
-
-    // Also allow Enter / Space to start
-    this.input.keyboard!.on("keydown-ENTER", () => this.scene.start("CarSelectionScene"));
-    this.input.keyboard!.on("keydown-SPACE", () => this.scene.start("CarSelectionScene"));
-
-    // Pulse the button
-    this.tweens.add({
-      targets: [btnBg, btnText],
-      scaleX: 1.04, scaleY: 1.04,
-      yoyo: true,
-      repeat: -1,
-      duration: 700,
-      ease: "Sine.easeInOut",
-    });
+  private startRace(): void {
+    const carType   = (this.game.registry.get("carType")    as string | undefined) ?? "silver";
+    const difficulty = (this.game.registry.get("difficulty") as string | undefined) ?? DIFFICULTIES[DEFAULT_DIFFICULTY_INDEX].key;
+    this.scene.start("RaceScene", { carType, difficulty });
   }
 }

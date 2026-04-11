@@ -24,7 +24,7 @@ const config: Phaser.Types.Core.GameConfig = {
     activePointers: 3, // support throttle + shift + nitro simultaneously
   },
   audio: {
-    noAudio: true, // no audio assets – keep it clean
+    disableWebAudio: true, // Phaser audio unused; we use Web Audio API directly via MusicManager
   },
 };
 

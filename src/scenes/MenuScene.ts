@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { BEST_TIME_KEY, DIFFICULTIES, DEFAULT_DIFFICULTY_INDEX } from "../constants";
+import { MusicManager } from "../audio/MusicManager";
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -22,6 +23,14 @@ export class MenuScene extends Phaser.Scene {
 
     const { width: W, height: H } = this.scale;
     const cx = W / 2;
+
+    // ── Music ─────────────────────────────────────────────────────────────
+    // Start at menu volume; if AudioContext is still suspended (first load)
+    // it will resume automatically on the first user gesture below.
+    MusicManager.get().start(0.55);
+    // Resume on any pointer / key interaction (browser autoplay policy)
+    this.input.on("pointerdown", () => MusicManager.get().handleUserGesture());
+    this.input.keyboard!.on("keydown", () => MusicManager.get().handleUserGesture());
 
     // ── Background ────────────────────────────────────────────────────────
     this.add.rectangle(0, 0, W, H, 0x0a0a0a).setOrigin(0, 0);

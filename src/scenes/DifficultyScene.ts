@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { DIFFICULTIES, DEFAULT_DIFFICULTY_INDEX } from "../constants";
+import { MusicManager } from "../audio/MusicManager";
 
 const CARD_W    = 620;
 const CARD_H    = 56;
@@ -25,6 +26,10 @@ export class DifficultyScene extends Phaser.Scene {
 
     const { width: W } = this.scale;
     const cx = W / 2;
+
+    // ── Music ─────────────────────────────────────────────────────────────
+    MusicManager.get().start(0.55);
+    this.input.on("pointerdown", () => MusicManager.get().handleUserGesture());
 
     // ── Background ────────────────────────────────────────────────────────
     this.add.rectangle(0, 0, W, 450, 0x0a0a0a).setOrigin(0, 0);

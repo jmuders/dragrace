@@ -8,6 +8,7 @@ import {
   SHIFT_RPM_IDEAL, SHIFT_RPM_PERFECT_WINDOW, SHIFT_RPM_GOOD_WINDOW, REV_LIMITER_WINDOW,
 } from "../constants";
 import { createCarTexture, preloadCarTextures, getCarDisplayScale, CarType } from "../graphics/CarSprites";
+import { MusicManager } from "../audio/MusicManager";
 
 function gradeColour(grade: ShiftGrade | LaunchGrade): string {
   switch (grade) {
@@ -87,6 +88,9 @@ export class RaceScene extends Phaser.Scene {
     this.carType = data?.carType ?? "silver";
     this.difficulty = data?.difficulty ?? "STREET";
     this.sim = new RaceSimulation(data?.difficulty, data?.carType);
+
+    // Fade music to a quiet background level during the race
+    MusicManager.get().setVolume(0.15, 1.5);
     this.shiftEdge = false;
     this.feedbackTimer = 0;
     this.laneOffset = 0;

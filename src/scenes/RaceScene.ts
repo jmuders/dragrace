@@ -145,21 +145,59 @@ export class RaceScene extends Phaser.Scene {
 
   private initAudio(playerType: CarType, cpuType: CarType): void {
     try {
-      this.audioCtx = new AudioContext();
+      // webkitAudioContext fallback for older iOS Safari
+      const AC = (window.AudioContext ?? (window as any).webkitAudioContext) as typeof AudioContext;
+      this.audioCtx = new AC();
       const pEngineType = CAR_ENGINE_TYPE[playerType] ?? 'inline6';
       const cEngineType = CAR_ENGINE_TYPE[cpuType]    ?? 'inline6';
       this.playerSound = new EngineSound(this.audioCtx, pEngineType, 0,    1.0);
       this.cpuSound    = new EngineSound(this.audioCtx, cEngineType, 0.15, 0.45);
 
-      // Resume + start immediately — succeeds post-user-gesture (previous scene clicks)
+      // Try to resume immediately — works if the previous scene already unlocked
+      // the audio stack (user tapped a button to get here).
       this.audioCtx.resume().then(() => {
-        this.playerSound?.start();
-        this.cpuSound?.start();
-        this.audioStarted = true;
-      }).catch(() => { /* will retry on first input */ });
+        if (!this.audioStarted) {
+          this.playerSound?.start();
+          this.cpuSound?.start();
+          this.audioStarted = true;
+        }
+      }).catch(() => { /* will be unlocked by native DOM listener below */ });
 
-      // Clean up when this scene shuts down
-      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroyAudio());
+      // iOS requires ctx.resume() to be called synchronously inside a native
+      // touch/click handler.  Phaser fires its events in the game-loop update,
+      // not inside the browser's touch handler, so we register our own
+      // capture-phase listeners that fire before Phaser sees the event.
+      const unlock = () => {
+        if (!this.audioCtx) return;
+        this.audioCtx.resume().then(() => {
+          if (!this.audioStarted) {
+            this.playerSound?.start();
+            this.cpuSound?.start();
+            this.audioStarted = true;
+          }
+        }).catch(() => {});
+      };
+      document.addEventListener('touchstart', unlock, { capture: true, passive: true });
+      document.addEventListener('touchend',   unlock, { capture: true, passive: true });
+      document.addEventListener('click',      unlock, { capture: true, passive: true });
+
+      // PWA: iOS suspends the AudioContext when the home-screen app goes to
+      // the background.  Resume it when the user comes back.
+      const onVisibilityChange = () => {
+        if (!document.hidden && this.audioCtx && this.audioCtx.state !== 'running') {
+          this.audioCtx.resume().catch(() => {});
+        }
+      };
+      document.addEventListener('visibilitychange', onVisibilityChange);
+
+      // Clean up all listeners and audio nodes when this scene shuts down
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        document.removeEventListener('touchstart', unlock, true);
+        document.removeEventListener('touchend',   unlock, true);
+        document.removeEventListener('click',      unlock, true);
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+        this.destroyAudio();
+      });
     } catch {
       // Web Audio not available (e.g. some old mobile browsers) — silently skip
     }
@@ -277,12 +315,14 @@ export class RaceScene extends Phaser.Scene {
     }
 
     // ── Audio update ─────────────────────────────────────────────────────────
+    // Fallback for non-iOS browsers: resume on first in-game throttle/nitro input
     if (this.audioCtx && !this.audioStarted && (throttle || nitro)) {
-      // Retry resume on first user input if initial resume was blocked
       this.audioCtx.resume().then(() => {
-        this.playerSound?.start();
-        this.cpuSound?.start();
-        this.audioStarted = true;
+        if (!this.audioStarted) {
+          this.playerSound?.start();
+          this.cpuSound?.start();
+          this.audioStarted = true;
+        }
       }).catch(() => {});
     }
     if (this.audioStarted) {

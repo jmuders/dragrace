@@ -117,7 +117,7 @@ export class MusicManager {
   /**
    * Start music.  Safe to call before a user gesture; the AudioContext will
    * be created in a suspended state and automatically resumed on the next
-   * pointer or keyboard event (handled by `handleUserGesture`).
+   * native touch/click event via the DOM unlock listener.
    */
   start(volume = 0.55): void {
     if (this.playing) {
@@ -126,10 +126,16 @@ export class MusicManager {
     }
 
     if (!this.ctx) {
-      this.ctx    = new AudioContext();
+      // webkitAudioContext fallback for older iOS Safari
+      const AC = (window.AudioContext ?? (window as any).webkitAudioContext) as typeof AudioContext;
+      this.ctx    = new AC();
       this.master = this.ctx.createGain();
       this.master.gain.value = 0;
       this.master.connect(this.ctx.destination);
+      // Install native DOM listeners — Phaser fires events in its game loop
+      // (not synchronously in the touch handler), so iOS ignores ctx.resume()
+      // called from Phaser events.  Native capture-phase listeners fire first.
+      this._installNativeUnlock();
     }
 
     this.master!.gain.setTargetAtTime(volume, this.ctx.currentTime, 0.3);
@@ -138,8 +144,7 @@ export class MusicManager {
     this.step     = 0;
     this.nextTime = this.ctx.currentTime + 0.05;
 
-    if (this.ctx.state === 'suspended') {
-      // Will actually start producing sound once resumed by a user gesture.
+    if (this.ctx.state !== 'running') {
       this.ctx.resume().catch(() => {/* ignore */});
     }
 
@@ -148,12 +153,52 @@ export class MusicManager {
 
   /**
    * Call from any pointer / keyboard handler so the AudioContext is allowed
-   * to play by the browser autoplay policy.
+   * to play by the browser autoplay policy.  On iOS the native DOM listeners
+   * registered by `_installNativeUnlock` fire first (capture phase), so this
+   * method is primarily a safety net for other browsers / environments.
    */
   handleUserGesture(): void {
-    if (this.ctx && this.ctx.state === 'suspended') {
+    if (this.ctx && this.ctx.state !== 'running') {
       this.ctx.resume().catch(() => {/* ignore */});
     }
+  }
+
+  /**
+   * Install native capture-phase DOM listeners that unlock the AudioContext
+   * as early as possible — before Phaser processes the same event in its
+   * update loop.  Also handles PWA background/foreground transitions where
+   * iOS suspends or 'interrupts' the context.
+   */
+  private _installNativeUnlock(): void {
+    const resume = () => {
+      if (this.ctx && this.ctx.state !== 'running') {
+        this.ctx.resume().catch(() => {/* ignore */});
+      }
+    };
+
+    // capture: true → fires before Phaser's bubbling handlers
+    // passive: true → no scroll jank
+    document.addEventListener('touchstart', resume, { capture: true, passive: true });
+    document.addEventListener('touchend',   resume, { capture: true, passive: true });
+    document.addEventListener('click',      resume, { capture: true, passive: true });
+
+    // PWA: iOS suspends the AudioContext when the app is sent to the background.
+    // Resume it when the user brings the app back to the foreground.
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.ctx && this.ctx.state !== 'running') {
+        this.ctx.resume().catch(() => {/* ignore */});
+      }
+    });
+
+    // iOS-specific: AudioContext can enter 'interrupted' state (e.g. phone call).
+    // Resume as soon as the interruption ends.
+    this.ctx!.addEventListener('statechange', () => {
+      if (this.ctx && (this.ctx.state as string) === 'interrupted') {
+        // Will be released once the interruption ends; nothing to do here.
+      } else if (this.ctx && this.ctx.state === 'suspended' && this.playing) {
+        this.ctx.resume().catch(() => {/* ignore */});
+      }
+    });
   }
 
   /**

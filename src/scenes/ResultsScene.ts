@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { RaceResult, ShiftGrade, LaunchGrade } from "../types";
 import { CarType } from "../graphics/CarSprites";
+import { MusicManager } from "../audio/MusicManager";
 
 function gradeColour(grade: ShiftGrade | LaunchGrade): string {
   switch (grade) {
@@ -33,6 +34,9 @@ export class ResultsScene extends Phaser.Scene {
     const { result, carType = "silver", difficulty = "STREET" } = data;
     const { width, height } = this.scale;
     const cx = width / 2;
+
+    // Restore music to menu level now that the race is over
+    MusicManager.get().setVolume(0.45, 1.5);
 
     // ── Background ─────────────────────────────────────────────────────────
     this.add.rectangle(0, 0, width, height, 0x0a0a0a).setOrigin(0, 0);

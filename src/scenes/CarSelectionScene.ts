@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { createCarTexture, preloadCarTextures, getCarDisplayScale } from "../graphics/CarSprites";
 import { CAR_DATA } from "../data/CarData";
 import { CarStats } from "../types";
+import { MusicManager } from "../audio/MusicManager";
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
@@ -61,6 +62,10 @@ export class CarSelectionScene extends Phaser.Scene {
     this.slotNumbers = [];
 
     const W = 800, H = 450, cx = W / 2;
+
+    // ── Music ─────────────────────────────────────────────────────────────
+    MusicManager.get().start(0.55);
+    this.input.on("pointerdown", () => MusicManager.get().handleUserGesture());
 
     // ── Background ────────────────────────────────────────────────────────
     this.add.rectangle(0, 0, W, H, 0x0a0a0a).setOrigin(0, 0);

@@ -9,6 +9,7 @@ import {
 } from "../constants";
 import { createCarTexture, preloadCarTextures, getCarDisplayScale, CarType } from "../graphics/CarSprites";
 import { MusicManager } from "../audio/MusicManager";
+import { EngineSound, CAR_ENGINE_TYPE, estimateCpuRpm } from "../audio/EngineSound";
 
 function gradeColour(grade: ShiftGrade | LaunchGrade): string {
   switch (grade) {
@@ -78,6 +79,12 @@ export class RaceScene extends Phaser.Scene {
   private finishLineGfx!: Phaser.GameObjects.Graphics;
   private treeHideTriggered = false;
 
+  // ── Audio ──────────────────────────────────────────────────────────────────
+  private audioCtx:    AudioContext | null = null;
+  private playerSound: EngineSound  | null = null;
+  private cpuSound:    EngineSound  | null = null;
+  private audioStarted = false;
+
   constructor() { super({ key: "RaceScene" }); }
 
   preload(): void {
@@ -132,6 +139,39 @@ export class RaceScene extends Phaser.Scene {
     this.keyThrottleAlt = kbd.addKey(Phaser.Input.Keyboard.KeyCodes.W);
     this.keyShift       = kbd.addKey(Phaser.Input.Keyboard.KeyCodes.S);
     this.keyNitro       = kbd.addKey(Phaser.Input.Keyboard.KeyCodes.N);
+
+    this.initAudio(this.carType, cpuCarType);
+  }
+
+  private initAudio(playerType: CarType, cpuType: CarType): void {
+    try {
+      this.audioCtx = new AudioContext();
+      const pEngineType = CAR_ENGINE_TYPE[playerType] ?? 'inline6';
+      const cEngineType = CAR_ENGINE_TYPE[cpuType]    ?? 'inline6';
+      this.playerSound = new EngineSound(this.audioCtx, pEngineType, 0,    1.0);
+      this.cpuSound    = new EngineSound(this.audioCtx, cEngineType, 0.15, 0.45);
+
+      // Resume + start immediately — succeeds post-user-gesture (previous scene clicks)
+      this.audioCtx.resume().then(() => {
+        this.playerSound?.start();
+        this.cpuSound?.start();
+        this.audioStarted = true;
+      }).catch(() => { /* will retry on first input */ });
+
+      // Clean up when this scene shuts down
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroyAudio());
+    } catch {
+      // Web Audio not available (e.g. some old mobile browsers) — silently skip
+    }
+  }
+
+  private destroyAudio(): void {
+    this.playerSound?.destroy();
+    this.cpuSound?.destroy();
+    this.playerSound = null;
+    this.cpuSound    = null;
+    this.audioCtx?.close().catch(() => {});
+    this.audioCtx = null;
   }
 
   update(_t: number, deltaMs: number): void {
@@ -229,13 +269,31 @@ export class RaceScene extends Phaser.Scene {
     if (simShifted && this.sim.lastShiftEvent) {
       const ev = this.sim.lastShiftEvent;
       this.showFeedback(`SHIFT  ${ev.grade}`, gradeColour(ev.grade));
+      this.playerSound?.shiftCut();
     }
     if (this.feedbackTimer > 0) {
       this.feedbackTimer -= dt;
       if (this.feedbackTimer <= 0) this.feedbackText.setVisible(false);
     }
 
+    // ── Audio update ─────────────────────────────────────────────────────────
+    if (this.audioCtx && !this.audioStarted && (throttle || nitro)) {
+      // Retry resume on first user input if initial resume was blocked
+      this.audioCtx.resume().then(() => {
+        this.playerSound?.start();
+        this.cpuSound?.start();
+        this.audioStarted = true;
+      }).catch(() => {});
+    }
+    if (this.audioStarted) {
+      this.playerSound?.update(p.rpm, p.nitroActive);
+      const cpuRpm = c.rpm > 0 ? c.rpm : estimateCpuRpm(c.speed);
+      this.cpuSound?.update(cpuRpm, c.nitroActive);
+    }
+
     if (this.sim.isFinished()) {
+      this.playerSound?.stop();
+      this.cpuSound?.stop();
       this.scene.start("ResultsScene", { result: this.sim.buildResult(), carType: this.carType, opponentCarType: this.opponentCarType, difficulty: this.difficulty });
     }
   }

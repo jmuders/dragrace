@@ -115,16 +115,15 @@ export class MusicManager {
   // ── public API ───────────────────────────────────────────────────────────
 
   /**
-   * Start music.  Safe to call before a user gesture; the AudioContext will
-   * be created in a suspended state and automatically resumed on the next
-   * native touch/click event via the DOM unlock listener.
+   * Return the shared AudioContext, creating it (and installing native unlock
+   * listeners) if it does not yet exist.  Safe to call at any time.
+   *
+   * All audio in the game (music + engine sounds) should share this one
+   * context.  iOS only reliably unlocks a context whose resume() was called
+   * synchronously inside a native touch/click handler; sharing a single
+   * context means we only need to unlock it once.
    */
-  start(volume = 0.55): void {
-    if (this.playing) {
-      this.setVolume(volume);
-      return;
-    }
-
+  getContext(): AudioContext {
     if (!this.ctx) {
       // webkitAudioContext fallback for older iOS Safari
       const AC = (window.AudioContext ?? (window as any).webkitAudioContext) as typeof AudioContext;
@@ -137,15 +136,30 @@ export class MusicManager {
       // called from Phaser events.  Native capture-phase listeners fire first.
       this._installNativeUnlock();
     }
+    return this.ctx;
+  }
 
-    this.master!.gain.setTargetAtTime(volume, this.ctx.currentTime, 0.3);
+  /**
+   * Start music.  Safe to call before a user gesture; the AudioContext will
+   * be created in a suspended state and automatically resumed on the next
+   * native touch/click event via the DOM unlock listener.
+   */
+  start(volume = 0.55): void {
+    if (this.playing) {
+      this.setVolume(volume);
+      return;
+    }
+
+    this.getContext(); // ensures ctx, master GainNode, and unlock listeners exist
+
+    this.master!.gain.setTargetAtTime(volume, this.ctx!.currentTime, 0.3);
 
     this.playing  = true;
     this.step     = 0;
-    this.nextTime = this.ctx.currentTime + 0.05;
+    this.nextTime = this.ctx!.currentTime + 0.05;
 
-    if (this.ctx.state !== 'running') {
-      this.ctx.resume().catch(() => {/* ignore */});
+    if (this.ctx!.state !== 'running') {
+      this.ctx!.resume().catch(() => {/* ignore */});
     }
 
     this.timerId = setInterval(() => this._schedule(), SCHEDULER_MS);

@@ -111,6 +111,8 @@ export class MusicManager {
   private step      = 0;
   private nextTime  = 0;
   private timerId:  ReturnType<typeof setInterval> | null = null;
+  /** True once the silent-buffer iOS unlock trick has been performed. */
+  private _silentBufferPlayed = false;
 
   // ── public API ───────────────────────────────────────────────────────────
 
@@ -172,8 +174,36 @@ export class MusicManager {
    * method is primarily a safety net for other browsers / environments.
    */
   handleUserGesture(): void {
-    if (this.ctx && this.ctx.state !== 'running') {
-      this.ctx.resume().catch(() => {/* ignore */});
+    if (!this.ctx) return;
+    if (this.ctx.state !== 'running') {
+      this.ctx.resume().then(() => this._playSilentBuffer()).catch(() => {/* ignore */});
+    } else {
+      this._playSilentBuffer();
+    }
+  }
+
+  /**
+   * Play a 1-sample silent buffer on the first user gesture.
+   *
+   * iOS Safari requires that actual audio output (even silence) is produced
+   * synchronously within — or immediately after — a user-gesture handler
+   * before it will allow any subsequent sounds to play.  Calling resume()
+   * alone is not enough; the audio engine must be "primed" with a real
+   * AudioBufferSourceNode.  This is a one-shot operation: once played it
+   * sets `_silentBufferPlayed` and is a no-op on future calls.
+   */
+  private _playSilentBuffer(): void {
+    if (!this.ctx || this._silentBufferPlayed) return;
+    if (this.ctx.state !== 'running') return;
+    this._silentBufferPlayed = true;
+    try {
+      const buf = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(this.ctx.destination);
+      src.start(0);
+    } catch {
+      // Ignore — best effort; main sounds will still attempt to play
     }
   }
 
@@ -182,11 +212,22 @@ export class MusicManager {
    * as early as possible — before Phaser processes the same event in its
    * update loop.  Also handles PWA background/foreground transitions where
    * iOS suspends or 'interrupts' the context.
+   *
+   * iOS quirk (per Phaser docs): `touchend` after a drag/hold does NOT
+   * unlock Web Audio — only a brief tap's touchend qualifies.  We therefore
+   * also listen on `touchstart` so that the unlock fires at the very
+   * beginning of the first touch, regardless of how the gesture ends.
    */
   private _installNativeUnlock(): void {
     const resume = () => {
-      if (this.ctx && this.ctx.state !== 'running') {
-        this.ctx.resume().catch(() => {/* ignore */});
+      if (!this.ctx) return;
+      if (this.ctx.state !== 'running') {
+        // resume() must be called synchronously inside the event handler;
+        // then we prime the audio engine with a silent buffer (iOS needs
+        // actual output — not just resume() — before sounds will play).
+        this.ctx.resume().then(() => this._playSilentBuffer()).catch(() => {/* ignore */});
+      } else {
+        this._playSilentBuffer();
       }
     };
 
@@ -195,6 +236,7 @@ export class MusicManager {
     document.addEventListener('touchstart', resume, { capture: true, passive: true });
     document.addEventListener('touchend',   resume, { capture: true, passive: true });
     document.addEventListener('click',      resume, { capture: true, passive: true });
+    document.addEventListener('keydown',    resume, { capture: true, passive: true });
 
     // PWA: iOS suspends the AudioContext when the app is sent to the background.
     // Resume it when the user brings the app back to the foreground.
@@ -205,11 +247,9 @@ export class MusicManager {
     });
 
     // iOS-specific: AudioContext can enter 'interrupted' state (e.g. phone call).
-    // Resume as soon as the interruption ends.
+    // Resume as soon as the interruption ends (state will transition to 'suspended').
     this.ctx!.addEventListener('statechange', () => {
-      if (this.ctx && (this.ctx.state as string) === 'interrupted') {
-        // Will be released once the interruption ends; nothing to do here.
-      } else if (this.ctx && this.ctx.state === 'suspended' && this.playing) {
+      if (this.ctx && this.ctx.state === 'suspended' && this.playing) {
         this.ctx.resume().catch(() => {/* ignore */});
       }
     });

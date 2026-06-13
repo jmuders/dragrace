@@ -51,17 +51,10 @@ var _feedback_timer := 0.0
 var _player_engine: EngineSound
 var _cpu_engine: EngineSound
 
-# Lane scroll
-var _lane_offset := 0.0
-@onready var _lane_gfx: Node2D = $Track/LaneMarkings
-
-# Speed lines
-var _speed_lines: Array[ColorRect] = []
-var _cpu_speed_lines: Array[ColorRect] = []
-
 # Tree hide
 var _elapsed_race := 0.0
 var _trees_hidden := false
+var _race_ending := false
 @onready var _trees: Node2D = $Track/Trees
 
 func _ready() -> void:
@@ -156,6 +149,9 @@ func _process(delta: float) -> void:
 	_cpu_engine.update_rpm(cpu_rpm, false)
 	_cpu_engine.fill_buffer()
 
+	if _sim.just_launched:
+		_show_launch_feedback(_sim.last_launch_grade)
+
 	if shifted and not _sim.last_shift_event.is_empty():
 		_player_engine.shift_cut()
 		_show_feedback(_sim.last_shift_event)
@@ -168,7 +164,8 @@ func _process(delta: float) -> void:
 			var tween := create_tween()
 			tween.tween_property(_trees, "modulate:a", 0.0, 0.6)
 
-	if _sim.is_finished():
+	if _sim.is_finished() and not _race_ending:
+		_race_ending = true
 		await get_tree().create_timer(2.0).timeout
 		GameState.last_result = _sim.build_result()
 		_player_engine.destroy()

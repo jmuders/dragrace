@@ -1,4 +1,5 @@
-extends Node
+extends RefCounted
+class_name EngineSound
 
 # Procedural engine synthesizer using AudioStreamGenerator.
 # Replicates the Web Audio API oscillator graph from EngineSound.ts:

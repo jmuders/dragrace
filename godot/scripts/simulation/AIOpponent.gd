@@ -1,4 +1,5 @@
 extends RefCounted
+class_name AIOpponent
 
 var distance: float = 0.0
 var speed: float = 0.0

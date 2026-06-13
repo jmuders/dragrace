@@ -1,4 +1,5 @@
 extends RefCounted
+class_name Car
 
 # ── Enums (mirror src/types.ts) ────────────────────────────────────────────────
 enum LaunchGrade { PERFECT, GOOD, WHEELSPIN, BOG }
@@ -119,6 +120,9 @@ func update(input: Dictionary, dt: float) -> Dictionary:
 		finish_time = _elapsed_time
 
 	return shift_event
+
+func is_launched() -> bool:
+	return _launched
 
 func get_state() -> Dictionary:
 	return {

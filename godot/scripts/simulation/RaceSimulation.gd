@@ -1,4 +1,5 @@
 extends RefCounted
+class_name RaceSimulation
 
 enum RacePhase { STAGING, COUNTDOWN, RACING, FINISHED }
 
@@ -12,6 +13,9 @@ var _green_lit: bool = false
 var _elapsed: float = 0.0
 
 var last_shift_event: Dictionary = {}
+var just_launched: bool = false
+var last_launch_grade: int = -1
+var _player_launched_tracked: bool = false
 
 func _init(difficulty_key: String = "", car_type: String = "silver") -> void:
 	_ai  = AIOpponent.new(difficulty_key)
@@ -29,6 +33,7 @@ func start_countdown() -> void:
 # Returns true if a shift happened this tick
 func update(input: Dictionary, dt: float) -> bool:
 	last_shift_event = {}
+	just_launched = false
 	var shift_happened := false
 
 	match _phase:
@@ -51,6 +56,11 @@ func update(input: Dictionary, dt: float) -> bool:
 		RacePhase.RACING:
 			_elapsed += dt
 			var shift_event := _car.update(input, dt)
+			# Detect first launch to show feedback in RaceScene
+			if not _player_launched_tracked and _car.is_launched():
+				_player_launched_tracked = true
+				just_launched = true
+				last_launch_grade = _car.launch_grade
 			if not shift_event.is_empty():
 				last_shift_event = shift_event
 				shift_happened = true

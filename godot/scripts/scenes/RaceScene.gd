@@ -8,6 +8,29 @@ const CPU_LANE_Y    := 275.0
 const VIEWPORT_W    := 800.0
 const VIEWPORT_H    := 450.0
 
+# Preload all 21 car textures so they are always included in web/iOS exports
+const _TEX_SILVER         := preload("res://assets/cars/car_silver.png")
+const _TEX_GRAY_ROADSTER  := preload("res://assets/cars/car_gray_roadster.png")
+const _TEX_ORANGE_SUPRA   := preload("res://assets/cars/car_orange_supra.png")
+const _TEX_RED_RX7        := preload("res://assets/cars/car_red_rx7.png")
+const _TEX_YELLOW_LOTUS   := preload("res://assets/cars/car_yellow_lotus.png")
+const _TEX_RED_ROADSTER   := preload("res://assets/cars/car_red_roadster.png")
+const _TEX_RED            := preload("res://assets/cars/car_red.png")
+const _TEX_RED_HYPER      := preload("res://assets/cars/car_red_hyper.png")
+const _TEX_BLUE_GT40      := preload("res://assets/cars/car_blue_gt40.png")
+const _TEX_BLUE_PORSCHE   := preload("res://assets/cars/car_blue_porsche.png")
+const _TEX_GREEN          := preload("res://assets/cars/car_green.png")
+const _TEX_ORANGE         := preload("res://assets/cars/car_orange.png")
+const _TEX_RED_F40        := preload("res://assets/cars/car_red_f40.png")
+const _TEX_LIME_SUPER     := preload("res://assets/cars/car_lime_super.png")
+const _TEX_BLUE_COBRA     := preload("res://assets/cars/car_blue_cobra.png")
+const _TEX_BLUE_VIPER     := preload("res://assets/cars/car_blue_viper.png")
+const _TEX_YELLOW_MUSCLE  := preload("res://assets/cars/car_yellow_muscle.png")
+const _TEX_BLACK_HYPER    := preload("res://assets/cars/car_black_hyper.png")
+const _TEX_DARK_HYPER     := preload("res://assets/cars/car_dark_hyper.png")
+const _TEX_ORANGE_MCLAREN := preload("res://assets/cars/car_orange_mclaren.png")
+const _TEX_WHITE_PROTO    := preload("res://assets/cars/car_white_proto.png")
+
 # Simulation
 var _sim: RaceSimulation
 var _shift_edge := false
@@ -31,6 +54,7 @@ var _touch_ids: Dictionary = {}  # zone -> touch id
 @onready var _nitro_fill: ColorRect   = $HUD/NitroBar/Fill
 @onready var _feedback_label: Label   = $HUD/FeedbackLabel
 @onready var _start_btn: Button       = $HUD/StartBtn
+@onready var _touch_buttons: Control  = $HUD/TouchButtons
 
 # Countdown
 @onready var _amber1: ColorRect = $HUD/Countdown/Amber1
@@ -47,6 +71,9 @@ var _nitro_zone: Rect2
 # Feedback timer
 var _feedback_timer := 0.0
 
+# Shift button visual flash timer
+var _shift_visual_timer := 0.0
+
 # Audio
 var _player_engine: EngineSound
 var _cpu_engine: EngineSound
@@ -62,9 +89,9 @@ func _ready() -> void:
 
 	# Load car textures
 	_load_car_texture(_player_sprite, GameState.selected_car_type)
-	_load_car_texture(_cpu_sprite, "orange")  # CPU uses a random car visually
+	_load_car_texture(_cpu_sprite, "orange")
 
-	# Touch input zones (landscape 800×450, buttons at bottom)
+	# Touch input zones (landscape 800×450)
 	_throttle_zone = Rect2(0, 280, 400, 170)
 	_shift_zone    = Rect2(400, 170, 400, 140)
 	_nitro_zone    = Rect2(400, 310, 400, 140)
@@ -84,10 +111,30 @@ func _ready() -> void:
 	_red_light.modulate = Color.RED
 
 func _load_car_texture(sprite: Sprite2D, car_type: String) -> void:
-	var path := "res://assets/cars/car_%s.png" % car_type
-	var tex = load(path)
-	if tex:
-		sprite.texture = tex
+	var lut := {
+		"silver":         _TEX_SILVER,
+		"gray_roadster":  _TEX_GRAY_ROADSTER,
+		"orange_supra":   _TEX_ORANGE_SUPRA,
+		"red_rx7":        _TEX_RED_RX7,
+		"yellow_lotus":   _TEX_YELLOW_LOTUS,
+		"red_roadster":   _TEX_RED_ROADSTER,
+		"red":            _TEX_RED,
+		"red_hyper":      _TEX_RED_HYPER,
+		"blue_gt40":      _TEX_BLUE_GT40,
+		"blue_porsche":   _TEX_BLUE_PORSCHE,
+		"green":          _TEX_GREEN,
+		"orange":         _TEX_ORANGE,
+		"red_f40":        _TEX_RED_F40,
+		"lime_super":     _TEX_LIME_SUPER,
+		"blue_cobra":     _TEX_BLUE_COBRA,
+		"blue_viper":     _TEX_BLUE_VIPER,
+		"yellow_muscle":  _TEX_YELLOW_MUSCLE,
+		"black_hyper":    _TEX_BLACK_HYPER,
+		"dark_hyper":     _TEX_DARK_HYPER,
+		"orange_mclaren": _TEX_ORANGE_MCLAREN,
+		"white_proto":    _TEX_WHITE_PROTO,
+	}
+	sprite.texture = lut.get(car_type, _TEX_SILVER)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
@@ -125,6 +172,15 @@ func _process(delta: float) -> void:
 	var shift    := _shift_edge or _touch_shift_edge
 	_shift_edge = false
 	_touch_shift_edge = false
+
+	# Touch button visual feedback
+	if shift:
+		_shift_visual_timer = 0.2
+	_shift_visual_timer = maxf(_shift_visual_timer - delta, 0.0)
+	_touch_buttons.set_meta("throttle_active", throttle)
+	_touch_buttons.set_meta("nitro_active",    nitro)
+	_touch_buttons.set_meta("shift_active",    _shift_visual_timer > 0.0)
+	_touch_buttons.queue_redraw()
 
 	var input := { "throttle": throttle, "shift": shift, "nitro": nitro }
 	var shifted := _sim.update(input, delta)

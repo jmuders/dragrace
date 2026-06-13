@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://b4race"]
+[gd_scene load_steps=5 format=3 uid="uid://b4race"]
 
 [ext_resource type="Script" path="res://scripts/scenes/RaceScene.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/scenes/RPMGauge.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/scenes/SpeedGauge.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/scenes/TouchButtons.gd" id="4"]
 
 [node name="Race" type="Node2D"]
 script = ExtResource("1")
@@ -126,6 +127,12 @@ text = ""
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 28
 visible = false
+
+[node name="TouchButtons" type="Control" parent="HUD"]
+position = Vector2(0, 0)
+size = Vector2(800, 450)
+mouse_filter = 2
+script = ExtResource("4")
 
 [node name="StartBtn" type="Button" parent="HUD"]
 anchor_left = 0.5

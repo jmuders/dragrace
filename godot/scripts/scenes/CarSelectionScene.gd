@@ -8,10 +8,10 @@ const STAT_COLORS := [
 	Color(0.0, 1.0, 0.3),   # 5 - green
 ]
 
-@onready var _car_texture: TextureRect = $Layout/Center/CarPanel/CarTexture
-@onready var _car_name: Label = $Layout/Center/CarPanel/CarName
-@onready var _car_tagline: Label = $Layout/Center/CarPanel/CarTagline
-@onready var _car_counter: Label = $Layout/Center/CarPanel/Counter
+@onready var _car_texture: TextureRect = $Layout/Center/CarPanel/CarVBox/CarTexture
+@onready var _car_name: Label = $Layout/Center/CarPanel/CarVBox/CarName
+@onready var _car_tagline: Label = $Layout/Center/CarPanel/CarVBox/CarTagline
+@onready var _car_counter: Label = $Layout/Center/CarPanel/CarVBox/Counter
 @onready var _stat_bars: Array = [
 	$Layout/Center/StatsPanel/Power/Bar,
 	$Layout/Center/StatsPanel/Weight/Bar,

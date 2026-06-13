@@ -85,8 +85,9 @@ func _ready() -> void:
 
 func _load_car_texture(sprite: Sprite2D, car_type: String) -> void:
 	var path := "res://assets/cars/car_%s.png" % car_type
-	if ResourceLoader.exists(path):
-		sprite.texture = load(path)
+	var tex = load(path)
+	if tex:
+		sprite.texture = tex
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
@@ -192,6 +193,8 @@ func _update_gauges(player: Dictionary) -> void:
 	# Pass values via metadata so gauge _draw() can read them
 	_rpm_gauge.set_meta("rpm", player["rpm"])
 	_rpm_gauge.set_meta("rev_limiter", player["rev_limiter_active"])
+	_rpm_gauge.set_meta("is_racing", _sim.is_racing())
+	_rpm_gauge.set_meta("gear", player["gear"])
 	_speed_gauge.set_meta("speed_ms", player["speed"])
 
 func _update_countdown(cd: Dictionary) -> void:

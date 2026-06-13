@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3 uid="uid://b4race"]
+[gd_scene load_steps=4 format=3 uid="uid://b4race"]
 
 [ext_resource type="Script" path="res://scripts/scenes/RaceScene.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/scenes/RPMGauge.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/scenes/SpeedGauge.gd" id="3"]
 
 [node name="Race" type="Node2D"]
 script = ExtResource("1")
@@ -54,10 +56,12 @@ scale = Vector2(0.18, 0.18)
 [node name="RPMGauge" type="Control" parent="HUD"]
 position = Vector2(20, 330)
 size = Vector2(120, 100)
+script = ExtResource("2")
 
 [node name="SpeedGauge" type="Control" parent="HUD"]
 position = Vector2(660, 330)
 size = Vector2(120, 100)
+script = ExtResource("3")
 
 [node name="GearLabel" type="Label" parent="HUD"]
 position = Vector2(380, 340)

@@ -35,7 +35,7 @@ func _input(event: InputEvent) -> void:
 
 func _refresh_selection() -> void:
 	for i in range(_buttons.size()):
-		var d := Constants.DIFFICULTIES[i]
+		var d: Dictionary = Constants.DIFFICULTIES[i]
 		if i == _selected_index:
 			_buttons[i].add_theme_color_override("font_color", Color(0.05, 0.05, 0.05))
 			_buttons[i].add_theme_stylebox_override("normal",

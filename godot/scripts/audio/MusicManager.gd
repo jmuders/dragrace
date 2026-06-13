@@ -79,41 +79,41 @@ func fill_buffer() -> void:
 			_step_time -= STEP_SECONDS
 			_advance_step()
 
-		var root := CHORD_ROOTS[_chord_index]
-		var fifth := CHORD_FIFTHS[_chord_index]
+		var root: float = CHORD_ROOTS[_chord_index]
+		var fifth: float = CHORD_FIFTHS[_chord_index]
 
 		# Bass (sawtooth arpeggio alternating root/fifth per step)
-		var bass_freq := root * 0.5 if (_step % 2 == 0) else fifth * 0.5
-		var bass_saw := fposmod(_bass_phase / TAU, 1.0) * 2.0 - 1.0
+		var bass_freq: float = root * 0.5 if (_step % 2 == 0) else fifth * 0.5
+		var bass_saw: float = fposmod(_bass_phase / TAU, 1.0) * 2.0 - 1.0
 		_bass_phase = fposmod(_bass_phase + TAU * bass_freq * inv_sr, TAU)
 
 		# Lead (detuned pair, square-wave approximation via sign of sine)
-		var lead_freq := root * 2.0
-		var lead1 := sign(sin(_lead1_phase)) * 0.5
-		var lead2 := sign(sin(_lead2_phase)) * 0.5
+		var lead_freq: float = root * 2.0
+		var lead1: float = sign(sin(_lead1_phase)) * 0.5
+		var lead2: float = sign(sin(_lead2_phase)) * 0.5
 		_lead1_phase = fposmod(_lead1_phase + TAU * lead_freq * inv_sr, TAU)
 		_lead2_phase = fposmod(_lead2_phase + TAU * (lead_freq * 1.005) * inv_sr, TAU)
-		var lead := (lead1 + lead2) * 0.15
+		var lead: float = (lead1 + lead2) * 0.15
 
 		# Pad (triangle approximation)
-		var pad_freq := root
-		var pad_tri := (2.0 * absf(fposmod(_pad_phase / TAU, 1.0) - 0.5) - 0.5) * 2.0
+		var pad_freq: float = root
+		var pad_tri: float = (2.0 * absf(fposmod(_pad_phase / TAU, 1.0) - 0.5) - 0.5) * 2.0
 		_pad_phase = fposmod(_pad_phase + TAU * pad_freq * inv_sr, TAU)
-		var pad := pad_tri * 0.12
+		var pad: float = pad_tri * 0.12
 
 		# Kick (sine sweep)
-		var kick := sin(_kick_phase_val()) * _kick_env * 0.5
+		var kick: float = sin(_kick_phase_val()) * _kick_env * 0.5
 		_kick_env *= 0.9997
 
 		# Snare (noise burst)
-		var snare := (randf() * 2.0 - 1.0) * _snare_env * 0.3
+		var snare: float = (randf() * 2.0 - 1.0) * _snare_env * 0.3
 		_snare_env *= 0.998
 
 		# Hi-hat (high-freq noise burst)
-		var hihat := (randf() * 2.0 - 1.0) * _hihat_env * 0.15
+		var hihat: float = (randf() * 2.0 - 1.0) * _hihat_env * 0.15
 		_hihat_env *= 0.9985
 
-		var sample := (bass_saw * 0.4 + lead + pad + kick + snare + hihat) * _master_volume
+		var sample: float = (bass_saw * 0.4 + lead + pad + kick + snare + hihat) * _master_volume
 		sample = clampf(sample, -1.0, 1.0)
 		_player.push_frame(Vector2(sample, sample))
 

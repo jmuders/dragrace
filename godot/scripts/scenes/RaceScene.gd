@@ -173,9 +173,9 @@ func _process(delta: float) -> void:
 	var input := { "throttle": throttle, "shift": shift, "nitro": nitro }
 	var shifted := _sim.update(input, delta)
 
-	var state := _sim.get_state()
-	var player := state["player"]
-	var opponent := state["opponent"]
+	var state: Dictionary = _sim.get_state()
+	var player: Dictionary = state["player"]
+	var opponent: Dictionary = state["opponent"]
 
 	# Update HUD
 	_update_car_positions(player, opponent)
@@ -267,7 +267,7 @@ func _show_feedback(event: Dictionary) -> void:
 
 func _show_launch_feedback(launch_grade: int) -> void:
 	var grade_names := ["PERFECT", "GOOD", "WHEELSPIN", "BOG"]
-	var grade_key := grade_names[launch_grade]
+	var grade_key: String = grade_names[launch_grade]
 	var color := _grade_color(grade_key)
 	_feedback_label.text = "LAUNCH " + grade_key
 	_feedback_label.add_theme_color_override("font_color", color)

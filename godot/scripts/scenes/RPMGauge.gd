@@ -49,7 +49,7 @@ func _draw() -> void:
 		var t := int(Time.get_ticks_msec() / 80)
 		fill_color = Color.RED if t % 2 == 0 else Color.ORANGE
 	elif is_racing:
-		var shift_delta := abs(rpm - SHIFT_RPM_IDEAL)
+		var shift_delta: float = abs(rpm - SHIFT_RPM_IDEAL)
 		if can_shift and shift_delta <= SHIFT_RPM_PERFECT_WINDOW:
 			fill_color = Color(0.0,  1.0, 0.8)       # cyan  – SHIFT NOW
 		elif can_shift and shift_delta <= SHIFT_RPM_GOOD_WINDOW:

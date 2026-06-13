@@ -227,7 +227,7 @@ func _coast_step(dt: float) -> void:
 	var gear_factor := Constants.GEAR_RATIOS[gear] / Constants.GEAR_RATIOS[1]
 	var engine_braking := Constants.ENGINE_BRAKING_FORCE * gear_factor if speed > 2.0 else 0.0
 	var total_resistance := aero_drag + Constants.ROLLING_RESISTANCE + engine_braking
-	var decel := total_resistance / _cfg["massKg"]
+	var decel: float = total_resistance / float(_cfg["massKg"])
 	speed = maxf(0.0, speed - decel * dt)
 	distance += speed * dt
 

@@ -32,13 +32,13 @@ func _ready() -> void:
 		tween.tween_property(_best_time, "modulate:a", 0.3, 0.5)
 		tween.tween_property(_best_time, "modulate:a", 1.0, 0.5)
 	else:
-		var best := result["best_time"]
+		var best: float = result["best_time"]
 		_best_time.text = "BEST: " + ("%.3f" % best) + "s" if best > 0.0 else ""
 
 	# Launch grade
 	var launch_names := ["PERFECT", "GOOD", "WHEELSPIN", "BOG"]
 	var lgrade := int(result["launch_grade"])
-	var lkey := launch_names[lgrade]
+	var lkey: String = launch_names[lgrade]
 	_launch.text = "LAUNCH: " + lkey
 	_launch.add_theme_color_override("font_color", _grade_color(lkey))
 

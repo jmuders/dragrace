@@ -51,8 +51,9 @@ func _refresh() -> void:
 	_car_counter.text = "%d / %d" % [_index + 1, _cars.size()]
 
 	var tex_path := "res://assets/cars/car_%s.png" % car["type"]
-	if ResourceLoader.exists(tex_path):
-		_car_texture.texture = load(tex_path)
+	var tex = load(tex_path)
+	if tex:
+		_car_texture.texture = tex
 
 	var stats: Dictionary = car["stats"]
 	var stat_keys := ["power", "weight", "grip", "shift", "aero"]

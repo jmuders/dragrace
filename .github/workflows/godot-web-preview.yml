@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - claude/godot-web-preview-0p2333
+      - claude/car-images-instruments-display-uimvgj
   workflow_dispatch:
 
 permissions:

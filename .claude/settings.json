@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install*)",
+      "Bash(npm run build*)",
+      "Bash(npm run preview*)",
+      "Bash(npm ci*)",
+      "Bash(npx tsc*)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git describe*)",
+      "Bash(git remote*)",
+      "Bash(git fetch*)",
+      "Bash(ls*)",
+      "Bash(find . *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(grep *)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm install && npm run build"
+          }
+        ]
+      }
+    ]
+  }
+}

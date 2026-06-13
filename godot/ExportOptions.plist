@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Distribution method: app-store for TestFlight/App Store, ad-hoc for direct install -->
+    <key>method</key>
+    <string>app-store</string>
+
+    <!-- Manual code signing (certificates installed in build environment) -->
+    <key>signingStyle</key>
+    <string>manual</string>
+
+    <!-- Strip Swift symbols to reduce binary size -->
+    <key>stripSwiftSymbols</key>
+    <true/>
+
+    <!-- Upload symbols to Apple for crash reporting -->
+    <key>uploadSymbols</key>
+    <true/>
+
+    <!-- Thinning: none = universal binary (fat binary for all devices) -->
+    <key>thinning</key>
+    <string>&lt;none&gt;</string>
+
+    <!--
+      Provisioning profiles dict.
+      Key:   bundle ID of the app target
+      Value: name of the installed provisioning profile
+      Update PROFILE_NAME to match the profile you upload to Codemagic.
+    -->
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.jmuders.dragrace</key>
+        <string>Drag Race Distribution</string>
+    </dict>
+</dict>
+</plist>

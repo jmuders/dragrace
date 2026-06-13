@@ -1,0 +1,124 @@
+workflows:
+  godot-ios:
+    name: Godot iOS Build
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+
+    environment:
+      vars:
+        GODOT_VERSION: "4.3-stable"
+        BUNDLE_ID: "com.jmuders.dragrace"
+        GODOT_BIN: "$HOME/godot/Godot.app/Contents/MacOS/Godot"
+        TEMPLATES_DIR: "$HOME/Library/Application Support/Godot/export_templates/4.3.stable"
+      groups:
+        - apple_credentials   # APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_PRIVATE_KEY
+        - ios_signing         # CERTIFICATE_PRIVATE_KEY (base64 .p12), PROVISIONING_PROFILE (base64 .mobileprovision), CERTIFICATE_PASSWORD
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "main"
+          include: true
+      cancel_previous_builds: true
+
+    scripts:
+      - name: Install Godot 4 (headless macOS)
+        script: |
+          set -e
+          mkdir -p "$HOME/godot"
+          curl -fsSL "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_macos.universal.zip" \
+            -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d "$HOME/godot"
+          # The zip extracts to "Godot.app"
+          chmod +x "$GODOT_BIN"
+          "$GODOT_BIN" --version
+
+      - name: Download iOS export templates
+        script: |
+          set -e
+          mkdir -p "$TEMPLATES_DIR"
+          curl -fsSL "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz" \
+            -o /tmp/templates.tpz
+          unzip -q /tmp/templates.tpz -d /tmp/godot_templates
+          cp /tmp/godot_templates/templates/ios* "$TEMPLATES_DIR/"
+          # Rename to expected names (stable vs rc naming)
+          ls "$TEMPLATES_DIR/"
+
+      - name: Import distribution certificate
+        script: |
+          set -e
+          echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/dist_cert.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import /tmp/dist_cert.p12 \
+            -k build.keychain \
+            -P "${CERTIFICATE_PASSWORD:-}" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/xcodebuild
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s -k "" build.keychain
+
+      - name: Install provisioning profile
+        script: |
+          set -e
+          echo "$PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          PROFILE_UUID=$(security cms -D -i /tmp/profile.mobileprovision \
+            | plutil -extract UUID raw -)
+          cp /tmp/profile.mobileprovision \
+            "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.mobileprovision"
+          echo "Installed profile: $PROFILE_UUID"
+
+      - name: Godot iOS export
+        script: |
+          set -e
+          # Run headless import first so Godot caches resources
+          "$GODOT_BIN" --headless --path godot/ --import || true
+          # Export to Xcode project
+          mkdir -p /tmp/godot_ios_export
+          "$GODOT_BIN" --headless --path godot/ \
+            --export-release "iOS" /tmp/godot_ios_export/dragrace.xcodeproj
+
+      - name: Build and archive with Xcode
+        script: |
+          set -e
+          # Resolve the team / signing identity from the installed cert
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain \
+            | grep "iPhone Distribution" | head -1 | awk -F'"' '{print $2}')
+          echo "Signing as: $SIGNING_IDENTITY"
+
+          xcodebuild archive \
+            -project /tmp/godot_ios_export/dragrace.xcodeproj \
+            -scheme dragrace \
+            -sdk iphoneos \
+            -archivePath /tmp/dragrace.xcarchive \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
+            DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
+            CODE_SIGN_STYLE=Manual \
+            | xcpretty
+
+      - name: Export IPA
+        script: |
+          set -e
+          xcodebuild -exportArchive \
+            -archivePath /tmp/dragrace.xcarchive \
+            -exportPath /tmp/dragrace_ipa \
+            -exportOptionsPlist godot/ExportOptions.plist \
+            | xcpretty
+          ls -la /tmp/dragrace_ipa/
+
+    artifacts:
+      - /tmp/dragrace_ipa/*.ipa
+      - /tmp/dragrace.xcarchive
+
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_ID
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        beta_groups:
+          - "Internal Testers"

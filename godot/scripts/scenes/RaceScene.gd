@@ -8,7 +8,7 @@ const CPU_LANE_Y    := 275.0
 const VIEWPORT_W    := 800.0
 const VIEWPORT_H    := 450.0
 
-# Preload all 21 car textures so they are always included in web/iOS exports
+# preload() guarantees all 21 car textures are included in web/iOS exports
 const _TEX_SILVER         := preload("res://assets/cars/car_silver.png")
 const _TEX_GRAY_ROADSTER  := preload("res://assets/cars/car_gray_roadster.png")
 const _TEX_ORANGE_SUPRA   := preload("res://assets/cars/car_orange_supra.png")
@@ -49,12 +49,12 @@ var _touch_ids: Dictionary = {}  # zone -> touch id
 # HUD nodes
 @onready var _rpm_gauge: Control      = $HUD/RPMGauge
 @onready var _speed_gauge: Control    = $HUD/SpeedGauge
+@onready var _touch_buttons: Control  = $HUD/TouchButtons
 @onready var _gear_label: Label       = $HUD/GearLabel
 @onready var _timer_label: Label      = $HUD/TimerLabel
 @onready var _nitro_fill: ColorRect   = $HUD/NitroBar/Fill
 @onready var _feedback_label: Label   = $HUD/FeedbackLabel
 @onready var _start_btn: Button       = $HUD/StartBtn
-@onready var _touch_buttons: Control  = $HUD/TouchButtons
 
 # Countdown
 @onready var _amber1: ColorRect = $HUD/Countdown/Amber1
@@ -68,10 +68,8 @@ var _throttle_zone: Rect2
 var _shift_zone: Rect2
 var _nitro_zone: Rect2
 
-# Feedback timer
+# Timers
 var _feedback_timer := 0.0
-
-# Shift button visual flash timer
 var _shift_visual_timer := 0.0
 
 # Audio
@@ -112,27 +110,17 @@ func _ready() -> void:
 
 func _load_car_texture(sprite: Sprite2D, car_type: String) -> void:
 	var lut := {
-		"silver":         _TEX_SILVER,
-		"gray_roadster":  _TEX_GRAY_ROADSTER,
-		"orange_supra":   _TEX_ORANGE_SUPRA,
-		"red_rx7":        _TEX_RED_RX7,
-		"yellow_lotus":   _TEX_YELLOW_LOTUS,
-		"red_roadster":   _TEX_RED_ROADSTER,
-		"red":            _TEX_RED,
-		"red_hyper":      _TEX_RED_HYPER,
-		"blue_gt40":      _TEX_BLUE_GT40,
-		"blue_porsche":   _TEX_BLUE_PORSCHE,
-		"green":          _TEX_GREEN,
-		"orange":         _TEX_ORANGE,
-		"red_f40":        _TEX_RED_F40,
-		"lime_super":     _TEX_LIME_SUPER,
-		"blue_cobra":     _TEX_BLUE_COBRA,
-		"blue_viper":     _TEX_BLUE_VIPER,
-		"yellow_muscle":  _TEX_YELLOW_MUSCLE,
-		"black_hyper":    _TEX_BLACK_HYPER,
-		"dark_hyper":     _TEX_DARK_HYPER,
-		"orange_mclaren": _TEX_ORANGE_MCLAREN,
-		"white_proto":    _TEX_WHITE_PROTO,
+		"silver": _TEX_SILVER, "gray_roadster": _TEX_GRAY_ROADSTER,
+		"orange_supra": _TEX_ORANGE_SUPRA, "red_rx7": _TEX_RED_RX7,
+		"yellow_lotus": _TEX_YELLOW_LOTUS, "red_roadster": _TEX_RED_ROADSTER,
+		"red": _TEX_RED, "red_hyper": _TEX_RED_HYPER,
+		"blue_gt40": _TEX_BLUE_GT40, "blue_porsche": _TEX_BLUE_PORSCHE,
+		"green": _TEX_GREEN, "orange": _TEX_ORANGE,
+		"red_f40": _TEX_RED_F40, "lime_super": _TEX_LIME_SUPER,
+		"blue_cobra": _TEX_BLUE_COBRA, "blue_viper": _TEX_BLUE_VIPER,
+		"yellow_muscle": _TEX_YELLOW_MUSCLE, "black_hyper": _TEX_BLACK_HYPER,
+		"dark_hyper": _TEX_DARK_HYPER, "orange_mclaren": _TEX_ORANGE_MCLAREN,
+		"white_proto": _TEX_WHITE_PROTO,
 	}
 	sprite.texture = lut.get(car_type, _TEX_SILVER)
 
@@ -246,7 +234,6 @@ func _update_gauges(player: Dictionary) -> void:
 	_rpm_gauge.queue_redraw()
 	_speed_gauge.queue_redraw()
 	_gear_label.text = str(player["gear"]) if player["gear"] > 0 else "-"
-	# Pass values via metadata so gauge _draw() can read them
 	_rpm_gauge.set_meta("rpm", player["rpm"])
 	_rpm_gauge.set_meta("rev_limiter", player["rev_limiter_active"])
 	_rpm_gauge.set_meta("is_racing", _sim.is_racing())

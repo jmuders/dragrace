@@ -1,21 +1,11 @@
 /**
- * Pixel-art car texture generator.
+ * Car texture loader and pixel-art fallback generator.
  *
- * Draws each car type into a Phaser RenderTexture so it can be used as a
- * normal sprite. Each "pixel" in the art grid is drawn as a 4×4 square.
+ * PNG sprites are loaded directly via preloadCarTextures() and used as-is
+ * (they already have transparent backgrounds). If a PNG is missing the
+ * procedural pixel-art fallback is used for the four base car types.
  *
  * Cars face RIGHT (front on the right, rear/tail on the left).
- * Approximate size: 40×18 art pixels → 160×72 rendered pixels.
- *
- * PNG sprites take priority: call preloadCarTextures(scene) in your scene's
- * preload() method. Place PNG files at:
- *   public/assets/car_silver.png
- *   public/assets/car_orange.png
- *   public/assets/car_red.png
- *   public/assets/car_green.png
- *
- * White (R≥248, G≥248, B≥248) pixels are converted to transparent automatically.
- * If a PNG is missing, the procedural pixel-art fallback is used.
  */
 
 const PX = 4; // pixels per art-grid cell
@@ -315,6 +305,8 @@ const CAR_DEFS: Partial<Record<CarType, CarDef>> = {
 /**
  * Queue PNG sprites for loading. Call this in your scene's preload() method.
  * PNG files must be placed in public/assets/ with names car_<type>.png.
+ * PNGs are loaded directly under their final key — no post-processing needed
+ * because the images already have transparent backgrounds (RGBA format).
  * If a PNG is missing the procedural fallback is used automatically.
  */
 export function preloadCarTextures(scene: Phaser.Scene): void {
@@ -327,9 +319,9 @@ export function preloadCarTextures(scene: Phaser.Scene): void {
     "yellow_muscle",
   ];
   for (const type of types) {
-    const srcKey = `car_src_${type}`;
-    if (!scene.textures.exists(srcKey)) {
-      scene.load.image(srcKey, `assets/car_${type}.png`);
+    const key = `car_${type}`;
+    if (!scene.textures.exists(key)) {
+      scene.load.image(key, `assets/car_${type}.png`);
     }
   }
 }
@@ -344,85 +336,42 @@ export function getCarDisplayScale(scene: Phaser.Scene, key: string, targetW: nu
   return w > 0 ? targetW / w : 1;
 }
 
-/**
- * Reads a preloaded PNG texture, strips its white background (pixels where
- * R≥248, G≥248, B≥248 become fully transparent), and registers the result
- * under destKey in the texture manager.
- */
-function buildTransparentTexture(
-  scene: Phaser.Scene,
-  srcKey: string,
-  destKey: string,
-): void {
-  const src = scene.textures.get(srcKey);
-  const srcImg = src.source[0].image as HTMLImageElement;
-  const w = srcImg.naturalWidth  || srcImg.width;
-  const h = srcImg.naturalHeight || srcImg.height;
-
-  const canvas = document.createElement("canvas");
-  canvas.width  = w;
-  canvas.height = h;
-
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(srcImg, 0, 0);
-
-  const imgData = ctx.getImageData(0, 0, w, h);
-  const d = imgData.data;
-  for (let i = 0; i < d.length; i += 4) {
-    if (d[i] >= 248 && d[i + 1] >= 248 && d[i + 2] >= 248) {
-      d[i + 3] = 0;
-    }
-  }
-  ctx.putImageData(imgData, 0, 0);
-
-  scene.textures.addCanvas(destKey, canvas);
-}
-
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Creates a named texture for the given car type in `scene`'s texture manager.
- * The texture key is `car_<type>`.
+ * Returns the texture key for the given car type, creating it if needed.
  *
  * Priority:
  *  1. Already cached → return immediately.
- *  2. PNG preloaded via preloadCarTextures() → strip white bg, cache, return.
- *  3. Procedural pixel-art fallback.
+ *  2. PNG preloaded via preloadCarTextures() → already registered, return.
+ *  3. Procedural pixel-art fallback (PNG failed to load).
  */
 export function createCarTexture(scene: Phaser.Scene, type: CarType): string {
-  const key    = `car_${type}`;
-  const srcKey = `car_src_${type}`;
+  const key = `car_${type}`;
 
+  // PNG was loaded by preloadCarTextures() — use it directly.
   if (scene.textures.exists(key)) return key;
 
-  // ── PNG path ──────────────────────────────────────────────────────────────
-  if (scene.textures.exists(srcKey)) {
-    try {
-      buildTransparentTexture(scene, srcKey, key);
-      return key;
-    } catch {
-      // PNG processing failed – fall through to procedural
-    }
-  }
-
-  // ── Procedural fallback ───────────────────────────────────────────────────
-  const def = CAR_DEFS[type] ?? CAR_DEFS["silver"]!;
+  // ── Procedural fallback (PNG missing / failed to load) ────────────────────
+  // Use an HTML Canvas rather than RenderTexture so it works reliably across
+  // all Phaser versions without saveTexture/destroy lifecycle issues.
+  const def  = CAR_DEFS[type] ?? CAR_DEFS["silver"]!;
   const texW = def.w * PX;
   const texH = def.h * PX;
 
-  const rt = scene.add.renderTexture(0, 0, texW, texH).setVisible(false);
-  const g  = scene.add.graphics();
+  const canvas = document.createElement("canvas");
+  canvas.width  = texW;
+  canvas.height = texH;
+  const ctx = canvas.getContext("2d")!;
 
   for (const [rx, ry, rw, rh, col] of def.rects) {
-    g.fillStyle(col, 1);
-    g.fillRect(rx * PX, ry * PX, rw * PX, rh * PX);
+    const r = (col >> 16) & 0xff;
+    const g = (col >>  8) & 0xff;
+    const b =  col        & 0xff;
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(rx * PX, ry * PX, rw * PX, rh * PX);
   }
 
-  rt.draw(g);
-  rt.saveTexture(key);
-
-  g.destroy();
-  rt.destroy();
-
+  scene.textures.addCanvas(key, canvas);
   return key;
 }

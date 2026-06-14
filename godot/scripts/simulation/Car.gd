@@ -158,7 +158,7 @@ func _launch_multiplier_for_grade(grade: int) -> float:
 
 func _do_shift() -> Dictionary:
 	var grade := _evaluate_shift(rpm)
-	var grade_key := ShiftGrade.keys()[grade]
+	var grade_key: String = str(ShiftGrade.keys()[grade])
 	var speed_loss: float = Constants.SHIFT_SPEED_LOSS.get(grade_key, 0.0)
 
 	speed *= (1.0 - speed_loss)
@@ -224,7 +224,7 @@ func _physics_step(dt: float) -> void:
 func _coast_step(dt: float) -> void:
 	rev_limiter_active = false
 	var aero_drag := _cfg["aeroDragCoeff"] * speed * speed
-	var gear_factor := Constants.GEAR_RATIOS[gear] / Constants.GEAR_RATIOS[1]
+	var gear_factor: float = float(Constants.GEAR_RATIOS[gear]) / float(Constants.GEAR_RATIOS[1])
 	var engine_braking := Constants.ENGINE_BRAKING_FORCE * gear_factor if speed > 2.0 else 0.0
 	var total_resistance := aero_drag + Constants.ROLLING_RESISTANCE + engine_braking
 	var decel: float = total_resistance / float(_cfg["massKg"])

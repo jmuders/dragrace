@@ -96,14 +96,14 @@ func fill_buffer() -> void:
 	_master_volume = lerp(_master_volume, _target_volume, 0.05)
 
 	var p := _profile
-	var freq := p["firing_per_rev"] * maxf(_current_rpm, 50.0) / 60.0
+	var freq: float = float(p["firing_per_rev"]) * maxf(_current_rpm, 50.0) / 60.0
 	var sub_freq := freq * 0.5
 	var harm_freq := freq * 2.0
 	var lfo_freq := freq
 
 	# Filter coefficient: one-pole low-pass (approximation)
 	var rpm_frac := clampf((_current_rpm - 1000.0) / (8500.0 - 1000.0), 0.0, 1.0)
-	var filter_cutoff := p["filter_min"] + (p["filter_max"] - p["filter_min"]) * pow(rpm_frac, 0.55)
+	var filter_cutoff: float = float(p["filter_min"]) + (float(p["filter_max"]) - float(p["filter_min"])) * pow(rpm_frac, 0.55)
 	# IIR coefficient from cutoff: α = 1 - exp(-2π*fc/fs)
 	_filter_coef = 1.0 - exp(-TAU * filter_cutoff / SAMPLE_RATE)
 
@@ -114,7 +114,7 @@ func fill_buffer() -> void:
 	var available := _player.get_frames_available()
 	var frames_to_fill := mini(available, 512)
 
-	var main_base_gain := 1.0 - p["pulse_depth"] * 0.5
+	var main_base_gain: float = 1.0 - float(p["pulse_depth"]) * 0.5
 	var sub_gain: float = p["sub_bass_gain"]
 	var harm_gain: float = p["harm_gain"]
 	var pulse_depth: float = p["pulse_depth"]

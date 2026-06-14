@@ -163,10 +163,13 @@ func _do_shift() -> Dictionary:
 
 	speed *= (1.0 - speed_loss)
 
+	var old_ratio: float = Constants.GEAR_RATIOS[gear]
 	gear = mini(gear + 1, 4)
 	var new_ratio: float = Constants.GEAR_RATIOS[gear]
-	var wheel_rpm_now := (speed / Constants.TYRE_RADIUS) * (60.0 / TAU)
-	rpm = maxf(Constants.IDLE_RPM, wheel_rpm_now * new_ratio * Constants.FINAL_DRIVE)
+	rpm = maxf(
+		Constants.IDLE_RPM,
+		rpm * (new_ratio / old_ratio) * Constants.SHIFT_RPM_DROP_FACTOR
+	)
 	_target_rpm = rpm
 
 	var event := {

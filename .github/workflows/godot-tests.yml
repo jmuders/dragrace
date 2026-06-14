@@ -49,13 +49,40 @@ jobs:
           Godot_v4.6-stable_linux.x86_64 \
             --headless --path godot/ --editor --quit 2>&1 || true
 
+      - name: Probe Car instantiation
+        if: always()
+        run: |
+          cat > godot/car_probe.gd << 'EOF'
+          extends Node
+          func _ready():
+              print("=== Car probe ===")
+              var c = Car.new({})
+              if c == null:
+                  printerr("PROBE FAIL: Car.new({}) returned null")
+              else:
+                  print("PROBE OK: rpm=" + str(c.rpm))
+              get_tree().quit(0)
+          EOF
+          Godot_v4.6-stable_linux.x86_64 \
+            --headless --path godot/ \
+            -s res://car_probe.gd 2>&1 || true
+          rm -f godot/car_probe.gd
+
       - name: Run GUT tests
         run: |
+          set -o pipefail
           Godot_v4.6-stable_linux.x86_64 \
             --headless --path godot/ \
             -s addons/gut/gut_cmdln.gd \
             -gconfig=res://.gutconfig.json \
-            -gexit
+            -gexit 2>&1 | tee /tmp/gut_output.txt
+
+      - name: Show first 400 lines of GUT output
+        if: failure()
+        run: |
+          echo "=== FIRST 400 LINES OF GUT OUTPUT ==="
+          head -400 /tmp/gut_output.txt 2>/dev/null || echo "(no output captured)"
+          echo "=== END ==="
 
       - name: Debug class cache
         if: always()

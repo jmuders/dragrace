@@ -140,11 +140,11 @@ func get_state() -> Dictionary:
 # ── Private helpers ────────────────────────────────────────────────────────────
 
 func _evaluate_launch(r: float) -> int:
-	if r >= _cfg["launchPerfectLow"] and r <= _cfg["launchPerfectHigh"]:
+	if r >= float(_cfg["launchPerfectLow"]) and r <= float(_cfg["launchPerfectHigh"]):
 		return LaunchGrade.PERFECT
-	if r >= _cfg["launchGoodLow"] and r <= _cfg["launchGoodHigh"]:
+	if r >= float(_cfg["launchGoodLow"]) and r <= float(_cfg["launchGoodHigh"]):
 		return LaunchGrade.GOOD
-	if r > _cfg["launchGoodHigh"]:
+	if r > float(_cfg["launchGoodHigh"]):
 		return LaunchGrade.WHEELSPIN
 	return LaunchGrade.BOG
 
@@ -184,9 +184,9 @@ func _do_shift() -> Dictionary:
 
 func _evaluate_shift(r: float) -> int:
 	var delta := absf(r - Constants.SHIFT_RPM_IDEAL)
-	if delta <= _cfg["shiftPerfectWindow"]: return ShiftGrade.PERFECT
-	if delta <= _cfg["shiftGoodWindow"]:    return ShiftGrade.GOOD
-	if r < Constants.SHIFT_RPM_IDEAL:       return ShiftGrade.EARLY
+	if delta <= float(_cfg["shiftPerfectWindow"]): return ShiftGrade.PERFECT
+	if delta <= float(_cfg["shiftGoodWindow"]):    return ShiftGrade.GOOD
+	if r < Constants.SHIFT_RPM_IDEAL:              return ShiftGrade.EARLY
 	return ShiftGrade.LATE
 
 func _physics_step(dt: float) -> void:
@@ -200,7 +200,7 @@ func _physics_step(dt: float) -> void:
 		limiter_factor = maxf(0.0, limiter_factor)
 	rev_limiter_active = rpm >= limiter_rpm_low
 
-	var drive_force := (_cfg["torqueNm"] * torque_factor * ratio * Constants.FINAL_DRIVE) \
+	var drive_force := (float(_cfg["torqueNm"]) * torque_factor * ratio * Constants.FINAL_DRIVE) \
 		/ Constants.TYRE_RADIUS \
 		* _launch_multiplier \
 		* limiter_factor
@@ -208,10 +208,10 @@ func _physics_step(dt: float) -> void:
 	var nitro_force := Constants.NITRO_FORCE if nitro_active else 0.0
 	var nitro_rpm_boost := Constants.NITRO_RPM_BOOST if nitro_active else 0.0
 
-	var drag := _cfg["aeroDragCoeff"] * speed * speed
+	var drag := float(_cfg["aeroDragCoeff"]) * speed * speed
 	var net_force := drive_force + nitro_force - drag - Constants.ROLLING_RESISTANCE
 
-	var acceleration := net_force / _cfg["massKg"]
+	var acceleration := net_force / float(_cfg["massKg"])
 	speed = maxf(0.0, speed + acceleration * dt)
 	distance += speed * dt
 
@@ -223,7 +223,7 @@ func _physics_step(dt: float) -> void:
 
 func _coast_step(dt: float) -> void:
 	rev_limiter_active = false
-	var aero_drag := _cfg["aeroDragCoeff"] * speed * speed
+	var aero_drag := float(_cfg["aeroDragCoeff"]) * speed * speed
 	var gear_factor: float = float(Constants.GEAR_RATIOS[gear]) / float(Constants.GEAR_RATIOS[1])
 	var engine_braking := Constants.ENGINE_BRAKING_FORCE * gear_factor if speed > 2.0 else 0.0
 	var total_resistance := aero_drag + Constants.ROLLING_RESISTANCE + engine_braking

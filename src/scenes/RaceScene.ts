@@ -573,13 +573,11 @@ export class RaceScene extends Phaser.Scene {
     this.gaugeY  = H - 60;
     const SPD_ARC_R = 50;
     const SPD_ARC_W = 13;
-    // Shift button left edge = W - 80 - 155/2 = W - 157.5; place tachometer just left of it
-    const TACH_BEZEL_R = SPD_ARC_R + 7; // 57px – same size as speedometer
-    const gRpmX  = W - 157.5 - 8 - TACH_BEZEL_R;
+    const GAUGE_OFFSET = 110;
+    const gSpdX = W / 2 - GAUGE_OFFSET;  // speedometer: center-left
+    const gRpmX = W / 2 + GAUGE_OFFSET;  // tachometer: center-right
+    this.spdGaugeX = gSpdX;
     this.rpmGaugeX = gRpmX;
-    // Throttle button right edge ≈ 80 + 155/2 = 157.5; place speedometer right next to it
-    this.spdGaugeX   = 157 + 10 + SPD_ARC_R + 7; // gap + bezel radius
-    const gSpdX      = this.spdGaugeX;
     const centX  = W / 2;
 
     // ── Panel background ──────────────────────────────────────────────────

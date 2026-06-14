@@ -4,7 +4,7 @@
 // Incrementing CACHE_VERSION will kick off the install event and force
 // previously cached resources to be updated from the network.
 /** @type {string} */
-const CACHE_VERSION = '1781470557|3671604';
+const CACHE_VERSION = '1781481434|3922269';
 /** @type {string} */
 const CACHE_PREFIX = 'Drag Race-sw-cache-';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;

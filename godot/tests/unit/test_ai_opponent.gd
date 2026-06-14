@@ -37,7 +37,7 @@ func test_distance_monotonically_increases() -> void:
 		ai.update(dt)
 		if ai.finished:
 			break
-		assert_ge(ai.distance, prev, "Distance should not decrease")
+		assert_gte(ai.distance, prev, "Distance should not decrease")
 		prev = ai.distance
 
 func test_speed_non_negative() -> void:
@@ -45,7 +45,7 @@ func test_speed_non_negative() -> void:
 	var dt := 0.1
 	for _i in range(200):
 		ai.update(dt)
-		assert_ge(ai.speed, 0.0, "Speed must never be negative")
+		assert_gte(ai.speed, 0.0, "Speed must never be negative")
 		if ai.finished:
 			break
 
@@ -61,7 +61,7 @@ func test_finished_flag_set_after_crossing_quarter_mile() -> void:
 		if ai.finished:
 			break
 	assert_true(ai.finished, "AI should finish within reasonable time")
-	assert_ge(ai.distance, Constants.QUARTER_MILE_METERS)
+	assert_gte(ai.distance, Constants.QUARTER_MILE_METERS)
 
 func test_finish_time_recorded_when_finished() -> void:
 	var ai := AIOpponent.new("STREET")

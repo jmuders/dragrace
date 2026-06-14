@@ -200,7 +200,7 @@ func _physics_step(dt: float) -> void:
 		limiter_factor = maxf(0.0, limiter_factor)
 	rev_limiter_active = rpm >= limiter_rpm_low
 
-	var drive_force := (_cfg["torqueNm"] * torque_factor * ratio * Constants.FINAL_DRIVE) \
+	var drive_force: float = (_cfg["torqueNm"] * torque_factor * ratio * Constants.FINAL_DRIVE) \
 		/ Constants.TYRE_RADIUS \
 		* _launch_multiplier \
 		* limiter_factor
@@ -208,10 +208,10 @@ func _physics_step(dt: float) -> void:
 	var nitro_force := Constants.NITRO_FORCE if nitro_active else 0.0
 	var nitro_rpm_boost := Constants.NITRO_RPM_BOOST if nitro_active else 0.0
 
-	var drag := _cfg["aeroDragCoeff"] * speed * speed
-	var net_force := drive_force + nitro_force - drag - Constants.ROLLING_RESISTANCE
+	var drag: float = _cfg["aeroDragCoeff"] * speed * speed
+	var net_force: float = drive_force + nitro_force - drag - Constants.ROLLING_RESISTANCE
 
-	var acceleration := net_force / _cfg["massKg"]
+	var acceleration: float = net_force / _cfg["massKg"]
 	speed = maxf(0.0, speed + acceleration * dt)
 	distance += speed * dt
 

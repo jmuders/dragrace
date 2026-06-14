@@ -187,7 +187,7 @@ func test_finished_flag_set_at_quarter_mile() -> void:
 		if car.finished:
 			break
 	assert_true(car.finished, "Car should finish within 60 seconds")
-	assert_ge(car.distance, Constants.QUARTER_MILE_METERS)
+	assert_gte(car.distance, Constants.QUARTER_MILE_METERS)
 
 func test_finish_time_set_and_stable() -> void:
 	var input := {"throttle": true, "shift": false, "nitro": false}

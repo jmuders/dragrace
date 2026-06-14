@@ -1,21 +1,22 @@
 extends Control
 
-const _THROTTLE_RECT := Rect2(3, 302, 155, 135)
-const _SHIFT_RECT    := Rect2(643, 284, 155, 72)
-const _NITRO_RECT    := Rect2(643, 365, 155, 72)
-
 const _COL_THROTTLE := Color(0.2, 0.4, 1.0)
 const _COL_SHIFT    := Color(1.0, 0.67, 0.0)
 const _COL_NITRO    := Color(0.0, 0.8, 1.0)
 
 func _draw() -> void:
+	var w := size.x
+	var throttle_rect := Rect2(3,       302, 155, 135)
+	var shift_rect    := Rect2(w - 157, 284, 155,  72)
+	var nitro_rect    := Rect2(w - 157, 365, 155,  72)
+
 	var throttle: bool = get_meta("throttle_active", false)
 	var shift: bool    = get_meta("shift_active",    false)
 	var nitro: bool    = get_meta("nitro_active",    false)
 
-	_draw_btn(_THROTTLE_RECT, _COL_THROTTLE, "▲", "THROTTLE", "HOLD", throttle)
-	_draw_btn(_SHIFT_RECT,    _COL_SHIFT,    "◆", "SHIFT",    "TAP",  shift)
-	_draw_btn(_NITRO_RECT,    _COL_NITRO,    "★", "NITRO",    "HOLD", nitro)
+	_draw_btn(throttle_rect, _COL_THROTTLE, "▲", "THROTTLE", "HOLD", throttle)
+	_draw_btn(shift_rect,    _COL_SHIFT,    "◆", "SHIFT",    "TAP",  shift)
+	_draw_btn(nitro_rect,    _COL_NITRO,    "★", "NITRO",    "HOLD", nitro)
 
 func _draw_btn(rect: Rect2, col: Color, icon: String, label: String, sub: String, active: bool) -> void:
 	var fill_a   := 0.72 if active else 0.28

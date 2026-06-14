@@ -83,16 +83,32 @@ var _race_ending := false
 @onready var _trees: Node2D = $Track/Trees
 
 func _ready() -> void:
+	var vp := get_viewport_rect().size
+	var cx  := vp.x * 0.5
+
+	$BG.size                           = vp
+	$Track/Road.size.x                 = vp.x
+	$Track/Trees/TreeRow.size.x        = vp.x
+	$Track/LaneMarkings/Divider.size.x = vp.x
+
+	$HUD/TouchButtons.size.x      = vp.x
+	$HUD/SpeedGauge.position.x    = vp.x - 140.0
+	$HUD/GearLabel.position.x     = cx - 20.0
+	$HUD/TimerLabel.position.x    = cx - 70.0
+	$HUD/NitroBar.position.x      = cx - 60.0
+	$HUD/Countdown.position.x     = cx - 50.0
+	$HUD/FeedbackLabel.position.x = cx - 100.0
+
 	_sim = RaceSimulation.new(GameState.selected_difficulty, GameState.selected_car_type)
 
 	# Load car textures
 	_load_car_texture(_player_sprite, GameState.selected_car_type)
 	_load_car_texture(_cpu_sprite, "orange")
 
-	# Touch input zones (landscape 800×450)
-	_throttle_zone = Rect2(0, 280, 400, 170)
-	_shift_zone    = Rect2(400, 170, 400, 140)
-	_nitro_zone    = Rect2(400, 310, 400, 140)
+	# Touch input zones — use actual viewport width
+	_throttle_zone = Rect2(0,  280, cx, 170)
+	_shift_zone    = Rect2(cx, 170, cx, 140)
+	_nitro_zone    = Rect2(cx, 310, cx, 140)
 
 	# Engine sounds
 	var player_engine_type := GameState.car_data.get_engine_type(GameState.selected_car_type)

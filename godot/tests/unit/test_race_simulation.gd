@@ -59,8 +59,8 @@ func test_no_ambers_before_countdown() -> void:
 func test_amber_1_after_half_second() -> void:
 	var sim := RaceSimulation.new("STREET", "silver")
 	sim.start_countdown()
-	# Advance exactly 0.5s
-	for _i in range(10):
+	# Use 11 frames (0.55s) to avoid IEEE 754 imprecision at the 0.5s boundary
+	for _i in range(11):
 		sim.update({"throttle": false, "shift": false, "nitro": false}, 0.05)
 	var state := sim.get_state()
 	assert_gte(state["countdown"]["ambers_lit"], 1)

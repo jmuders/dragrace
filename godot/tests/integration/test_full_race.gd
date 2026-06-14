@@ -7,10 +7,7 @@ extends GutTest
 func _run_race(difficulty: String, launch_rpm: float, shift_rpm: float) -> Dictionary:
 	var sim := RaceSimulation.new(difficulty, "silver")
 
-	# Stage to desired RPM
-	sim._car.rpm = launch_rpm
-
-	# Advance through countdown
+	# Advance through countdown (RPM drops naturally during staging)
 	sim.start_countdown()
 	for _i in range(60):
 		sim.update({"throttle": false, "shift": false, "nitro": false}, 0.05)
@@ -20,6 +17,9 @@ func _run_race(difficulty: String, launch_rpm: float, shift_rpm: float) -> Dicti
 	if not sim.is_racing():
 		gut.p("WARNING: did not reach RACING phase in _run_race")
 		return {}
+
+	# Set desired RPM at the green light, just before the race loop
+	sim._car.rpm = launch_rpm
 
 	# Race loop
 	for _i in range(4000):

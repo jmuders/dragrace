@@ -149,6 +149,8 @@ func _handle_touch(pos: Vector2, pressed: bool, idx: int) -> void:
 		if _touch_ids.get("nitro") == idx:
 			_touch_nitro = false
 			_touch_ids.erase("nitro")
+		if _touch_ids.get("shift") == idx:
+			_touch_ids.erase("shift")
 
 func _process(delta: float) -> void:
 	if _sim == null:
@@ -231,14 +233,14 @@ func _update_car_positions(player: Dictionary, opponent: Dictionary) -> void:
 	_cpu_sprite.position.x    = TRACK_START_X + o_frac * TRACK_WIDTH
 
 func _update_gauges(player: Dictionary) -> void:
-	_rpm_gauge.queue_redraw()
-	_speed_gauge.queue_redraw()
 	_gear_label.text = str(player["gear"]) if player["gear"] > 0 else "-"
 	_rpm_gauge.set_meta("rpm", player["rpm"])
 	_rpm_gauge.set_meta("rev_limiter", player["rev_limiter_active"])
 	_rpm_gauge.set_meta("is_racing", _sim.is_racing())
 	_rpm_gauge.set_meta("gear", player["gear"])
 	_speed_gauge.set_meta("speed_ms", player["speed"])
+	_rpm_gauge.queue_redraw()
+	_speed_gauge.queue_redraw()
 
 func _update_countdown(cd: Dictionary) -> void:
 	var ambers := int(cd["ambers_lit"])

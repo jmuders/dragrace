@@ -30,7 +30,7 @@ var _target_rpm: float = 1000.0
 var _elapsed_time: float = 0.0
 
 # ── Per-car physics config ─────────────────────────────────────────────────────
-var _cfg: Dictionary
+var _cfg: Dictionary = {}
 
 func _init(config: Dictionary = {}) -> void:
 	if config.is_empty():

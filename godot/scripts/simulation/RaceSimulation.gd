@@ -39,6 +39,8 @@ func update(input: Dictionary, dt: float) -> bool:
 	match _phase:
 		RacePhase.STAGING:
 			_car.update_staging(input["throttle"], dt)
+			if input["throttle"]:
+				start_countdown()
 
 		RacePhase.COUNTDOWN:
 			_car.update_staging(input["throttle"], dt)
@@ -66,6 +68,8 @@ func update(input: Dictionary, dt: float) -> bool:
 				shift_happened = true
 			_ai.update(dt)
 			if _car.finished and _ai.finished:
+				_phase = RacePhase.FINISHED
+			elif _car.finished and (_elapsed - _car.finish_time) >= 1.0:
 				_phase = RacePhase.FINISHED
 			elif (_car.finished or _ai.finished) and _elapsed > 30.0:
 				_phase = RacePhase.FINISHED

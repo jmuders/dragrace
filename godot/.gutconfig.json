@@ -4,6 +4,5 @@
   "suffix": ".gd",
   "include_subdirs": true,
   "log_level": 1,
-  "should_exit": true,
-  "should_exit_on_success": true
+  "should_exit": true
 }

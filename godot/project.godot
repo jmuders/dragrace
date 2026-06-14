@@ -80,7 +80,3 @@ textures/canvas_textures/default_texture_filter=0
 Constants="*res://scripts/data/Constants.gd"
 GameState="*res://scripts/GameState.gd"
 Music="*res://scripts/audio/MusicManager.gd"
-
-[editor_plugins]
-
-enabled=PackedStringArray("res://addons/gut/plugin.cfg")

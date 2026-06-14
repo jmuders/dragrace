@@ -32,7 +32,7 @@ var _elapsed_time: float = 0.0
 # ── Per-car physics config ─────────────────────────────────────────────────────
 var _cfg: Dictionary = {}
 
-func _init(config: Dictionary = {}) -> void:
+func _init(config: Dictionary) -> void:
 	if config.is_empty():
 		_cfg = {
 			"torqueNm":           420.0,

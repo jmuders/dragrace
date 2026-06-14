@@ -42,7 +42,6 @@ jobs:
         with:
           path: godot/.godot
           key: godot-import-${{ hashFiles('godot/project.godot', 'godot/addons/**', 'godot/scripts/**') }}
-          restore-keys: godot-import-
 
       - name: Import project resources
         if: steps.cache-import.outputs.cache-hit != 'true'

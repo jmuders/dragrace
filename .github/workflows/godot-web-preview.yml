@@ -5,6 +5,7 @@ on:
     branches:
       - claude/godot-web-preview-0p2333
       - claude/car-images-instruments-display-uimvgj
+      - claude/godot-web-landscape-borders-v1btno
   workflow_dispatch:
 
 permissions:

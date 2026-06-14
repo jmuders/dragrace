@@ -107,6 +107,7 @@ func _ready() -> void:
 
 	_start_btn.show()
 	_red_light.modulate = Color.RED
+	_timer_label.hide()
 
 func _load_car_texture(sprite: Sprite2D, car_type: String) -> void:
 	var lut := {
@@ -124,7 +125,7 @@ func _load_car_texture(sprite: Sprite2D, car_type: String) -> void:
 	}
 	sprite.texture = lut.get(car_type, _TEX_SILVER)
 
-func _input(event: InputEvent) -> void:
+func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		_handle_touch(event.position, event.pressed, event.index)
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -150,6 +151,7 @@ func _handle_touch(pos: Vector2, pressed: bool, idx: int) -> void:
 			_touch_nitro = false
 			_touch_ids.erase("nitro")
 		if _touch_ids.get("shift") == idx:
+			_touch_shift_edge = false
 			_touch_ids.erase("shift")
 
 func _process(delta: float) -> void:
@@ -187,6 +189,7 @@ func _process(delta: float) -> void:
 
 	var elapsed: float = state["elapsed"]
 	if _sim.is_racing() or _sim.is_finished():
+		_timer_label.show()
 		_timer_label.text = "%.3f" % elapsed
 
 	# Engine audio
@@ -248,6 +251,7 @@ func _update_countdown(cd: Dictionary) -> void:
 	_amber2.modulate.a = 1.0 if ambers >= 2 else 0.2
 	_amber3.modulate.a = 1.0 if ambers >= 3 else 0.2
 	_green.modulate.a  = 1.0 if cd["green_lit"] else 0.2
+	_red_light.modulate.a = 0.2 if cd["green_lit"] else 1.0
 
 func _update_nitro_bar(remaining: float) -> void:
 	var frac := remaining / Constants.NITRO_DURATION

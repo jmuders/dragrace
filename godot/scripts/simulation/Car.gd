@@ -163,13 +163,10 @@ func _do_shift() -> Dictionary:
 
 	speed *= (1.0 - speed_loss)
 
-	var old_ratio: float = Constants.GEAR_RATIOS[gear]
 	gear = mini(gear + 1, 4)
 	var new_ratio: float = Constants.GEAR_RATIOS[gear]
-	rpm = maxf(
-		Constants.IDLE_RPM,
-		rpm * (new_ratio / old_ratio) * Constants.SHIFT_RPM_DROP_FACTOR
-	)
+	var wheel_rpm_now := (speed / Constants.TYRE_RADIUS) * (60.0 / TAU)
+	rpm = maxf(Constants.IDLE_RPM, wheel_rpm_now * new_ratio * Constants.FINAL_DRIVE)
 	_target_rpm = rpm
 
 	var event := {
@@ -216,7 +213,7 @@ func _physics_step(dt: float) -> void:
 	distance += speed * dt
 
 	var wheel_rpm := (speed / Constants.TYRE_RADIUS) * (60.0 / TAU)
-	_target_rpm = minf(Constants.MAX_RPM, wheel_rpm * ratio * Constants.FINAL_DRIVE + nitro_rpm_boost * dt)
+	_target_rpm = minf(Constants.MAX_RPM, wheel_rpm * ratio * Constants.FINAL_DRIVE + nitro_rpm_boost)
 
 	var rpm_lag := 1.0 - exp(-dt / 0.08)
 	rpm = minf(Constants.MAX_RPM, maxf(Constants.IDLE_RPM, rpm + (_target_rpm - rpm) * rpm_lag))

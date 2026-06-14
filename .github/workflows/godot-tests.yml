@@ -57,3 +57,10 @@ jobs:
             -s addons/gut/gut_cmdln.gd \
             -gconfig=res://.gutconfig.json \
             -gexit
+
+      - name: Debug class cache
+        if: always()
+        run: |
+          echo "=== GLOBAL_SCRIPT_CLASS_CACHE ==="
+          cat godot/.godot/global_script_class_cache.cfg 2>/dev/null || echo "(file not found)"
+          echo "=== END CACHE ==="

@@ -181,10 +181,14 @@ func _process(delta: float) -> void:
 	var player: Dictionary = state["player"]
 	var opponent: Dictionary = state["opponent"]
 
+	# Hide start button once countdown begins (handles both button-tap and throttle auto-start)
+	if not _sim.is_staging() and _start_btn.visible:
+		_start_btn.hide()
+
 	# Update HUD
 	_update_car_positions(player, opponent)
 	_update_gauges(player)
-	_update_countdown(state["countdown"])
+	_update_countdown(state["countdown"], _sim.is_staging())
 	_update_nitro_bar(player["nitro_remaining"])
 
 	var elapsed: float = state["elapsed"]
@@ -245,13 +249,13 @@ func _update_gauges(player: Dictionary) -> void:
 	_rpm_gauge.queue_redraw()
 	_speed_gauge.queue_redraw()
 
-func _update_countdown(cd: Dictionary) -> void:
+func _update_countdown(cd: Dictionary, is_staging: bool) -> void:
 	var ambers := int(cd["ambers_lit"])
 	_amber1.modulate.a = 1.0 if ambers >= 1 else 0.2
 	_amber2.modulate.a = 1.0 if ambers >= 2 else 0.2
 	_amber3.modulate.a = 1.0 if ambers >= 3 else 0.2
 	_green.modulate.a  = 1.0 if cd["green_lit"] else 0.2
-	_red_light.modulate.a = 0.2 if cd["green_lit"] else 1.0
+	_red_light.modulate.a = 1.0 if is_staging else 0.2
 
 func _update_nitro_bar(remaining: float) -> void:
 	var frac := remaining / Constants.NITRO_DURATION

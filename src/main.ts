@@ -28,4 +28,9 @@ const config: Phaser.Types.Core.GameConfig = {
   },
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// iOS Safari: recalculate canvas bounds when viewport shifts (address bar show/hide)
+window.addEventListener('resize', () => game.scale.refresh(), { passive: true });
+// Trigger one refresh on first touch in case bounds are stale at game load
+document.addEventListener('touchstart', () => game.scale.refresh(), { passive: true, once: true });

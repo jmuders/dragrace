@@ -817,61 +817,46 @@ export class RaceScene extends Phaser.Scene {
       gx >= a.cx - a.bw / 2 && gx <= a.cx + a.bw / 2 &&
       gy >= a.cy - a.bh / 2 && gy <= a.cy + a.bh / 2;
 
-    // Convert a browser Touch to game-space coordinates accounting for canvas scaling
-    const canvas = this.sys.game.canvas;
-    const toGame = (touch: Touch): { x: number; y: number } => {
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: (touch.clientX - rect.left) * (w / rect.width),
-        y: (touch.clientY - rect.top)  * (h / rect.height),
-      };
-    };
-
-    // Track active touch identifiers per hold-button so multi-touch works correctly
+    // Track active pointer IDs per hold-button so multi-touch works correctly.
+    // Using Phaser's input system (pointerdown/pointerup) instead of raw DOM
+    // touchstart/touchend so iOS Safari's event normalization is handled by Phaser.
+    // pointer.x/y are already in game-space — no manual coordinate mapping needed.
     const throttleTouches = new Set<number>();
     const nitroTouches    = new Set<number>();
 
-    const onTouchStart = (e: TouchEvent) => {
-      e.preventDefault();
-      for (const t of Array.from(e.changedTouches)) {
-        const { x, y } = toGame(t);
-        if (hitTest(x, y, throttleArea)) {
-          throttleTouches.add(t.identifier);
-          this.touchThrottle = true;
-          throttle.setPressed(true);
-        }
-        if (hitTest(x, y, shiftArea)) {
-          this.touchShiftEdge = true;
-          shift.setPressed(true);
-          this.time.delayedCall(150, () => shift.setPressed(false));
-        }
-        if (hitTest(x, y, nitroArea)) {
-          nitroTouches.add(t.identifier);
-          this.touchNitro = true;
-          nitro.setPressed(true);
-        }
+    const onPointerDown = (pointer: Phaser.Input.Pointer) => {
+      const { x, y } = pointer;
+      if (hitTest(x, y, throttleArea)) {
+        throttleTouches.add(pointer.id);
+        this.touchThrottle = true;
+        throttle.setPressed(true);
+      }
+      if (hitTest(x, y, shiftArea)) {
+        this.touchShiftEdge = true;
+        shift.setPressed(true);
+        this.time.delayedCall(150, () => shift.setPressed(false));
+      }
+      if (hitTest(x, y, nitroArea)) {
+        nitroTouches.add(pointer.id);
+        this.touchNitro = true;
+        nitro.setPressed(true);
       }
     };
 
-    const onTouchEnd = (e: TouchEvent) => {
-      e.preventDefault();
-      for (const t of Array.from(e.changedTouches)) {
-        throttleTouches.delete(t.identifier);
-        nitroTouches.delete(t.identifier);
-      }
+    const onPointerUp = (pointer: Phaser.Input.Pointer) => {
+      throttleTouches.delete(pointer.id);
+      nitroTouches.delete(pointer.id);
       if (throttleTouches.size === 0) { this.touchThrottle = false; throttle.setPressed(false); }
       if (nitroTouches.size === 0)    { this.touchNitro    = false; nitro.setPressed(false); }
     };
 
-    canvas.addEventListener("touchstart",  onTouchStart, { passive: false });
-    canvas.addEventListener("touchend",    onTouchEnd,   { passive: false });
-    canvas.addEventListener("touchcancel", onTouchEnd,   { passive: false });
+    this.input.on('pointerdown', onPointerDown);
+    this.input.on('pointerup',   onPointerUp);
 
     // Remove listeners when this scene shuts down to prevent leaks
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      canvas.removeEventListener("touchstart",  onTouchStart);
-      canvas.removeEventListener("touchend",    onTouchEnd);
-      canvas.removeEventListener("touchcancel", onTouchEnd);
+      this.input.off('pointerdown', onPointerDown);
+      this.input.off('pointerup',   onPointerUp);
     });
   }
 }

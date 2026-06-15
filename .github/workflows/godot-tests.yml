@@ -1,0 +1,92 @@
+name: Godot Tests
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths: ["godot/**"]
+  pull_request:
+    branches: [main]
+    paths: ["godot/**"]
+
+jobs:
+  test:
+    name: Run GUT tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot binary
+        uses: actions/cache@v4
+        id: cache-godot
+        with:
+          path: /tmp/godot-bin
+          key: godot-4.6-stable-linux-x86_64
+
+      - name: Download Godot 4.6
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL \
+            "https://github.com/godotengine/godot/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64.zip" \
+            -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot-bin
+          chmod +x "/tmp/godot-bin/Godot_v4.6-stable_linux.x86_64"
+
+      - name: Add Godot to PATH
+        run: echo "/tmp/godot-bin" >> $GITHUB_PATH
+
+      - name: Cache project import data
+        uses: actions/cache@v4
+        id: cache-import
+        with:
+          path: godot/.godot
+          key: godot-import-${{ hashFiles('godot/project.godot', 'godot/addons/**', 'godot/scripts/**') }}
+
+      - name: Import project resources
+        if: steps.cache-import.outputs.cache-hit != 'true'
+        run: |
+          Godot_v4.6-stable_linux.x86_64 \
+            --headless --path godot/ --editor --quit 2>&1 || true
+
+      - name: Probe Car instantiation
+        if: always()
+        run: |
+          cat > godot/car_probe.gd << 'EOF'
+          extends Node
+          func _ready():
+              print("=== Car probe ===")
+              var c = Car.new({})
+              if c == null:
+                  printerr("PROBE FAIL: Car.new({}) returned null")
+              else:
+                  print("PROBE OK: rpm=" + str(c.rpm))
+              get_tree().quit(0)
+          EOF
+          Godot_v4.6-stable_linux.x86_64 \
+            --headless --path godot/ \
+            -s res://car_probe.gd 2>&1 || true
+          rm -f godot/car_probe.gd
+
+      - name: Run GUT tests
+        run: |
+          set -o pipefail
+          Godot_v4.6-stable_linux.x86_64 \
+            --headless --path godot/ \
+            -s addons/gut/gut_cmdln.gd \
+            -gconfig=res://.gutconfig.json \
+            -gexit 2>&1 | tee /tmp/gut_output.txt
+
+      - name: Show first 400 lines of GUT output
+        if: failure()
+        run: |
+          echo "=== FIRST 400 LINES OF GUT OUTPUT ==="
+          head -400 /tmp/gut_output.txt 2>/dev/null || echo "(no output captured)"
+          echo "=== END ==="
+
+      - name: Debug class cache
+        if: always()
+        run: |
+          echo "=== GLOBAL_SCRIPT_CLASS_CACHE ==="
+          cat godot/.godot/global_script_class_cache.cfg 2>/dev/null || echo "(file not found)"
+          echo "=== END CACHE ==="

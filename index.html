@@ -27,10 +27,12 @@
       #game-container {
         width: 100%;
         height: 100%;
+        touch-action: none;
       }
       canvas {
         display: block;
         touch-action: none;
+        cursor: pointer; /* iOS Safari requires this to dispatch pointer events to canvas */
       }
       #portrait-overlay {
         display: none;

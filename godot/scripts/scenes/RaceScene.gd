@@ -127,7 +127,10 @@ func _load_car_texture(sprite: Sprite2D, car_type: String) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
-		_handle_touch(event.position, event.pressed, event.index)
+		# event.position is in window/screen pixels; convert to canvas (game) space
+		# so hit-testing against the 800×450 zone rects works on any screen size.
+		var canvas_pos := get_viewport().get_canvas_transform().affine_inverse() * event.position
+		_handle_touch(canvas_pos, event.pressed, event.index)
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_S or event.keycode == KEY_ENTER:
 			_shift_edge = true

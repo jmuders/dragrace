@@ -127,9 +127,12 @@ func _load_car_texture(sprite: Sprite2D, car_type: String) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
-		# event.position is in window/screen pixels; convert to canvas (game) space
-		# so hit-testing against the 800×450 zone rects works on any screen size.
-		var canvas_pos := get_viewport().get_canvas_transform().affine_inverse() * event.position
+		# event.position is in screen pixels; convert to game (size_2d_override) space.
+		# get_final_transform() = window_transform * stretch_transform * global_canvas_transform,
+		# where stretch_transform = scale(screen_size / size_2d_override) in canvas_items mode.
+		# get_canvas_transform() only returns the local canvas_transform (identity with no
+		# Camera2D) and does NOT include the stretch scale — so we must use get_final_transform().
+		var canvas_pos := get_viewport().get_final_transform().affine_inverse() * event.position
 		_handle_touch(canvas_pos, event.pressed, event.index)
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_S or event.keycode == KEY_ENTER:
